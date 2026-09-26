@@ -194,12 +194,32 @@ export async function inspectPublicTikTokVideo(videoUrl, { signal } = {}) {
   const username = decodeURIComponent(match[1]);
   const id = match[2];
   const result = await fetchVideoPageItem(username, id, signal);
+  const video = result.item ? mapItem(result.item, username) : null;
+
+  let profile = null;
+  let profileDiagnostic = null;
+  try {
+    const collectedProfile = await fetchPublicTikTokProfile(username, { signal });
+    profile = collectedProfile.profile;
+    profileDiagnostic = collectedProfile.diagnostic;
+  } catch (error) {
+    profileDiagnostic = {
+      step: "profile-page",
+      failed: true,
+      message: error instanceof Error ? error.message : "Profile collection failed"
+    };
+  }
+
   return {
     source: "tiktok-public-video-page",
     input: { url: originalUrl, resolvedUrl, shortLinkResolved, username, videoId: id },
     collectedAt: new Date().toISOString(),
-    redirectDiagnostic,
-    diagnostic: result.diagnostic,
-    video: result.item ? mapItem(result.item, username) : null
+    profile,
+    video,
+    diagnostic: {
+      redirect: redirectDiagnostic,
+      video: result.diagnostic,
+      profile: profileDiagnostic
+    }
   };
 }
