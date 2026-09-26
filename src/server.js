@@ -87,8 +87,12 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 502, {
         ok: false,
         engineVersion: ENGINE_VERSION,
-        error: "BROWSER_PROBE_FAILED",
-        message: error instanceof Error ? error.message : "Unknown error"
+        error: error?.code === "BROWSER_PROBE_TIMEOUT" ? "BROWSER_PROBE_TIMEOUT" : "BROWSER_PROBE_FAILED",
+        message: error instanceof Error ? error.message : "Unknown error",
+        diagnostic: {
+          stage: error?.probeStage ?? "unknown",
+          durationMs: error?.probeDurationMs ?? null
+        }
       });
     }
   }
