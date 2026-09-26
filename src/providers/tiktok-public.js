@@ -170,6 +170,54 @@ async function fetchPublicPostList(secUid, signal, cookie = "") {
   };
 }
 
+async function discoverFromCreatorEmbed(username, signal) {
+  const startedAt = Date.now();
+  const profileUrl = `https://www.tiktok.com/@${username}`;
+  const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(profileUrl)}`, {
+    signal,
+    headers: { "user-agent": USER_AGENT, "accept": "application/json" }
+  });
+  const text = await response.text();
+  const diagnostic = {
+    step: "creator-oembed",
+    httpStatus: response.status,
+    ok: response.ok,
+    durationMs: Date.now() - startedAt,
+    responseBytes: Buffer.byteLength(text),
+    videoIdsFound: 0
+  };
+  if (!response.ok || !text.trim()) return { ids: [], diagnostic };
+  try {
+    const data = JSON.parse(text);
+    const source = [data.html, JSON.stringify(data)].filter(Boolean).join(" ");
+    const ids = [...new Set([...source.matchAll(/(?:video\/|data-video-id=[\\"'])(\d{10,})/g)].map((m) => m[1]))];
+    diagnostic.videoIdsFound = ids.length;
+    return { ids, diagnostic };
+  } catch {
+    return { ids: [], diagnostic: { ...diagnostic, parsedJson: false } };
+  }
+}
+
+async function fetchVideoPageItem(username, id, signal, cookie = "") {
+  const response = await fetch(`https://www.tiktok.com/@${username}/video/${id}`, {
+    signal,
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
+      ...(cookie ? { cookie } : {})
+    }
+  });
+  if (!response.ok) return null;
+  const html = await response.text();
+  try {
+    const payload = parseEmbeddedJson(html);
+    const items = extractItems(payload);
+    return items.find((item) => String(item.id ?? item.itemId) === String(id)) ?? items[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchPublicTikTokProfile(username, { signal } = {}) {
   const page = await fetchProfileHtml(username, signal);
   const payload = parseEmbeddedJson(page.html);
@@ -188,7 +236,9 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
       secUidFound: Boolean(profile.secUid),
       embeddedItemCount: items.length
     },
-    postList: null
+    postList: null,
+    creatorEmbed: null,
+    videoPages: null
   };
   const collectionStartedAt = Date.now();
 
@@ -208,7 +258,33 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
     collectionDiagnostic = "Profile payload did not expose secUid or embedded posts";
   }
 
-  diagnostics.totalDurationMs = page.diagnostic.durationMs + (diagnostics.postList?.durationMs ?? 0);
+  if (items.length === 0) {
+    const discovered = await discoverFromCreatorEmbed(username, signal);
+    diagnostics.creatorEmbed = discovered.diagnostic;
+    if (discovered.ids.length) {
+      const pageStartedAt = Date.now();
+      const pageItems = [];
+      for (const id of discovered.ids.slice(0, 10)) {
+        const item = await fetchVideoPageItem(username, id, signal, page.cookie);
+        if (item) pageItems.push(item);
+      }
+      diagnostics.videoPages = {
+        step: "individual-video-pages",
+        attempted: Math.min(discovered.ids.length, 10),
+        collected: pageItems.length,
+        durationMs: Date.now() - pageStartedAt
+      };
+      if (pageItems.length) {
+        items = pageItems;
+        collectionMethod = "creator-embed-video-pages";
+        collectionDiagnostic = null;
+      } else {
+        collectionDiagnostic = "Creator embed exposed video IDs, but individual video pages did not expose metrics";
+      }
+    }
+  }
+
+  diagnostics.totalDurationMs = page.diagnostic.durationMs + (diagnostics.postList?.durationMs ?? 0) + (diagnostics.creatorEmbed?.durationMs ?? 0) + (diagnostics.videoPages?.durationMs ?? 0);
   diagnostics.status = items.length > 0 ? "SUCCESS" : "FAILED";
   diagnostics.result = {
     videosCollected: items.length,
