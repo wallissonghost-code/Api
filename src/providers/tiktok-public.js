@@ -43,13 +43,10 @@ function extractProfile(payload, username) {
     if (!hasCounters) return false;
     const ownerId = obj.id ?? obj.uid ?? obj.userId ?? obj.user_id;
     const ownerName = obj.uniqueId ?? obj.unique_id ?? obj.username;
-    return (ownerId != null && String(ownerId) === userId) ||
-      (ownerName != null && String(ownerName).toLowerCase() === username.toLowerCase());
-  }) || findObject(payload, (obj) =>
-    obj && typeof obj === "object" &&
-    (obj.followerCount != null || obj.followingCount != null) &&
-    (obj.heartCount != null || obj.heart != null)
-  );
+    const idMatches = Boolean(userId) && ownerId != null && String(ownerId) === userId;
+    const nameMatches = ownerName != null && String(ownerName).toLowerCase() === username.toLowerCase();
+    return idMatches || nameMatches;
+  });
   return {
     id: userId,
     username: user.uniqueId ?? user.unique_id ?? username,
