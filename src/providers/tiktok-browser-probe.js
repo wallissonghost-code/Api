@@ -47,6 +47,7 @@ export async function probeTikTokProfileBrowser(username) {
     const page = await context.newPage();
     const requests = [];
     const responses = [];
+    const postItems = new Map();
 
     page.on("request", (request) => {
       try {
@@ -60,7 +61,26 @@ export async function probeTikTokProfileBrowser(username) {
         const url = new URL(response.url());
         if (!TIKTOK_HOST.test(url.hostname) || !INTERESTING.test(url.pathname)) return;
         const headers = await response.allHeaders();
-        responses.push({ status: response.status(), path: url.pathname, queryKeys: [...url.searchParams.keys()].sort(), contentType: headers["content-type"] || null, contentLength: Number(headers["content-length"] || 0) || null });
+        const meta = { status: response.status(), path: url.pathname, queryKeys: [...url.searchParams.keys()].sort(), contentType: headers["content-type"] || null, contentLength: Number(headers["content-length"] || 0) || null };
+        if (url.pathname === "/api/post/item_list/" && response.ok()) {
+          try {
+            const data = await response.json();
+            const items = data?.itemList ?? data?.item_list ?? [];
+            meta.bodyParsed = true;
+            meta.itemCount = Array.isArray(items) ? items.length : 0;
+            meta.hasMore = data?.hasMore ?? data?.has_more ?? null;
+            meta.cursor = data?.cursor ?? data?.maxCursor ?? data?.max_cursor ?? null;
+            if (Array.isArray(items)) {
+              for (const item of items) {
+                const id = String(item?.id ?? item?.itemId ?? "");
+                if (/^\\d{10,}$/.test(id)) postItems.set(id, item);
+              }
+            }
+          } catch {
+            meta.bodyParsed = false;
+          }
+        }
+        responses.push(meta);
       } catch {}
     });
 
@@ -77,7 +97,9 @@ export async function probeTikTokProfileBrowser(username) {
       source: "tiktok-browser-probe", username, collectedAt: new Date().toISOString(),
       durationMs: Date.now() - startedAt, stage: "complete",
       page: { finalUrl: page.url(), title: await page.title(), videoLinkCount: videoLinks.length },
-      videoIds, videoLinks,
+      videoIds: [...new Set([...videoIds, ...postItems.keys()])],
+      videoLinks,
+      items: [...postItems.values()],
       network: { requestCount: requests.length, responseCount: responses.length, requests, responses }
     };
   } catch (error) {
