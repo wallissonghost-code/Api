@@ -1,2 +1,2 @@
-export const ENGINE_VERSION = "0.0.60-beta";
-export const ENGINE_VERSION_LABEL = "v0.0.60Beta";
+export const ENGINE_VERSION = "0.0.61-beta";
+export const ENGINE_VERSION_LABEL = "v0.0.61Beta";
