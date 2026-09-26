@@ -170,6 +170,39 @@ async function fetchPublicPostList(secUid, signal, cookie = "") {
   };
 }
 
+function discoverVideoIdsFromProfileHtml(html, payload) {
+  const htmlPatterns = [
+    /\/video\/(\d{10,})/g,
+    /["'](?:id|itemId)["']\s*:\s*["'](\d{10,})["']/g
+  ];
+  const htmlIds = new Set();
+  for (const pattern of htmlPatterns) {
+    for (const match of html.matchAll(pattern)) htmlIds.add(match[1]);
+  }
+
+  const payloadIds = new Set();
+  const visit = (value, seen = new Set()) => {
+    if (!value || typeof value !== "object" || seen.has(value)) return;
+    seen.add(value);
+    const id = value.id ?? value.itemId;
+    if (id && /^\d{10,}$/.test(String(id)) && (value.video || value.stats || value.statsV2 || value.createTime)) {
+      payloadIds.add(String(id));
+    }
+    for (const child of Object.values(value)) visit(child, seen);
+  };
+  visit(payload);
+
+  return {
+    ids: [...new Set([...htmlIds, ...payloadIds])],
+    diagnostic: {
+      step: "profile-html-scan",
+      htmlVideoIdCount: htmlIds.size,
+      payloadVideoIdCount: payloadIds.size,
+      uniqueCandidateCount: new Set([...htmlIds, ...payloadIds]).size
+    }
+  };
+}
+
 async function discoverFromCreatorEmbed(username, signal) {
   const startedAt = Date.now();
   const profileUrl = `https://www.tiktok.com/@${username}`;
@@ -238,6 +271,7 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
     },
     postList: null,
     creatorEmbed: null,
+    profileHtmlScan: null,
     videoPages: null
   };
   const collectionStartedAt = Date.now();
@@ -256,6 +290,33 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
     }
   } else if (items.length === 0) {
     collectionDiagnostic = "Profile payload did not expose secUid or embedded posts";
+  }
+
+  if (items.length === 0) {
+    const scanned = discoverVideoIdsFromProfileHtml(page.html, payload);
+    diagnostics.profileHtmlScan = scanned.diagnostic;
+    if (scanned.ids.length) {
+      const pageStartedAt = Date.now();
+      const pageItems = [];
+      for (const id of scanned.ids.slice(0, 10)) {
+        const item = await fetchVideoPageItem(username, id, signal, page.cookie);
+        if (item) pageItems.push(item);
+      }
+      diagnostics.videoPages = {
+        step: "individual-video-pages",
+        source: "profile-html-scan",
+        attempted: Math.min(scanned.ids.length, 10),
+        collected: pageItems.length,
+        durationMs: Date.now() - pageStartedAt
+      };
+      if (pageItems.length) {
+        items = pageItems;
+        collectionMethod = "profile-html-video-pages";
+        collectionDiagnostic = null;
+      } else {
+        collectionDiagnostic = "Profile HTML exposed candidate video IDs, but individual video pages did not expose metrics";
+      }
+    }
   }
 
   if (items.length === 0) {
