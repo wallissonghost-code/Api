@@ -100,6 +100,22 @@ const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat("pt-BR",{no
 const engagement=v=>{const m=v.metrics||{},views=m.views||0;return views?((m.likes||0)+(m.comments||0)+(m.shares||0)+(m.saves||0))/views:0};
 function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){console.warn("Não foi possível salvar localmente",e)}}
 function active(){return state.active?state.profiles[state.active]:null}
+let profileCompatibilitySync=false;
+async function syncLegacyProfileStats(){
+ if(profileCompatibilitySync)return;
+ const p=active(),profile=p&&p.profile||{},stats=profile.stats,videos=p?Object.values(p.videos||{}):[];
+ if(!p||stats||!videos.length)return;
+ profileCompatibilitySync=true;
+ try{
+  const r=await fetch("/api/video?url="+encodeURIComponent(videos[0].url),{cache:"no-store"});
+  const data=await r.json();
+  if(r.ok&&data.profile){
+   p.profile=data.profile;
+   if(data.video)p.videos[data.video.id]=data.video;
+   save();render();
+  }
+ }catch(e){console.warn("Não foi possível sincronizar os dados públicos do perfil",e)}
+}
 function render(){
  const p=active(), list=p?Object.values(p.videos):[];
  $("profileCard").classList.toggle("show",!!p);
@@ -108,7 +124,7 @@ function render(){
  $("mVideos").textContent=list.length;$("mViews").textContent=fmt(sums.views);$("mLikes").textContent=fmt(sums.likes);$("mComments").textContent=fmt(sums.comments);$("mShares").textContent=fmt(sums.shares);
  $("mEng").textContent=list.length?(list.reduce((s,v)=>s+engagement(v),0)/list.length*100).toFixed(2)+"%":"—";
  $("sampleText").textContent=list.length?"Baseado em "+list.length+" vídeo"+(list.length===1?"":"s")+" adicionado"+(list.length===1?"":"s")+" ao sistema.":"Adicione um vídeo para começar.";
- $("videosAnalyzedCount").textContent=list.length+" vídeo"+(list.length===1?"":"s")+" analisado"+(list.length===1?"":"s");renderChart(list);renderInsights(list);renderVideos(list);setTimeout(syncNavToScroll,0)
+ $("videosAnalyzedCount").textContent=list.length+" vídeo"+(list.length===1?"":"s")+" analisado"+(list.length===1?"":"s");renderChart(list);renderInsights(list);renderVideos(list);setTimeout(syncNavToScroll,0);syncLegacyProfileStats()
 }
 function renderChart(list){const el=$("chart");el.innerHTML="";if(!list.length){el.innerHTML='<div class="empty" style="width:100%">Sem dados ainda.</div>';return}const ordered=[...list].sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));const max=Math.max(...ordered.map(v=>v.metrics?.views||0),1);ordered.forEach((v,i)=>{const w=document.createElement("div");w.className="barwrap";w.tabIndex=0;w.setAttribute("role","button");w.setAttribute("aria-label",(v.description||"Vídeo")+" · "+fmt(v.metrics?.views||0)+" visualizações");const value=document.createElement("div");value.className="barvalue";value.textContent=fmt(v.metrics?.views||0);const b=document.createElement("div");b.className="bar";b.style.height=Math.max(3,(v.metrics?.views||0)/max*100)+"%";b.title=fmt(v.metrics?.views||0)+" views";const l=document.createElement("div");l.className="barlabel";l.textContent=v.createdAt?new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"2-digit"}).format(new Date(v.createdAt)):"V"+(i+1);l.title=v.createdAt?new Intl.DateTimeFormat("pt-BR",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v.createdAt))+" · "+(v.description||"Vídeo"):v.description||("Vídeo "+(i+1));const go=()=>focusVideoFromChart(v.id);w.onclick=go;w.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}};w.append(value,b,l);el.append(w)})}
 function renderInsights(list){const el=$("insights");el.innerHTML="";if(!list.length){el.innerHTML='<div class="insight">Os insights aparecerão conforme você adicionar vídeos.</div>';return}const avg=list.reduce((s,v)=>s+(v.metrics?.views||0),0)/list.length;const best=[...list].sort((a,b)=>(b.metrics?.views||0)-(a.metrics?.views||0))[0];const bestEng=[...list].sort((a,b)=>engagement(b)-engagement(a))[0];const items=[];if(list.length>1&&avg)items.push("O vídeo mais visualizado teve "+((best.metrics.views/avg)).toFixed(1).replace(".",",")+"× a média de visualizações da sua amostra.");if(bestEng)items.push("Maior engajamento da amostra: "+(engagement(bestEng)*100).toFixed(2).replace(".",",")+"%.");if(list.length<5)items.push("Amostra pequena: adicione mais vídeos para comparações mais representativas.");else items.push("Insights calculados exclusivamente sobre os "+list.length+" vídeos adicionados.");items.forEach(t=>{const d=document.createElement("div");d.className="insight";d.textContent=t;el.append(d)})}
@@ -145,7 +161,7 @@ async function refreshAllVideos(){
  btn.disabled=true;btn.textContent="Atualizando…";let ok=0,failed=0;
  for(let i=0;i<videos.length;i++){
   out.textContent="Atualizando "+(i+1)+" de "+videos.length+"…";
-  try{const r=await fetch("/api/video?url="+encodeURIComponent(videos[i].url),{cache:"no-store"});const data=await r.json();if(!r.ok||!data.video)throw new Error(data.message||"Falha");const current=active();if(current&&current.videos[videos[i].id]){current.videos[data.video.id]=data.video;if(String(data.video.id)!==String(videos[i].id))delete current.videos[videos[i].id]}ok++}catch(e){failed++}
+  try{const r=await fetch("/api/video?url="+encodeURIComponent(videos[i].url),{cache:"no-store"});const data=await r.json();if(!r.ok||!data.video)throw new Error(data.message||"Falha");const current=active();if(current&&current.videos[videos[i].id]){if(data.profile)current.profile=data.profile;current.videos[data.video.id]=data.video;if(String(data.video.id)!==String(videos[i].id))delete current.videos[videos[i].id]}ok++}catch(e){failed++}
  }
  save();render();out.textContent=ok+" atualizado"+(ok===1?"":"s")+(failed?" · "+(failed===1?"1 falhou":failed+" falharam"):"");
  btn.disabled=false;btn.textContent="Atualizar todos";
