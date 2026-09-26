@@ -36,14 +36,33 @@ function extractProfile(payload, username) {
     (obj.uniqueId || obj.unique_id) &&
     String(obj.uniqueId ?? obj.unique_id).toLowerCase() === username.toLowerCase()
   );
-  return user ? {
-    id: String(user.id ?? user.uid ?? ""),
+  if (!user) return { id: null, username, nickname: null, avatarUrl: null, bio: null, verified: false, stats: null };
+  const userId = String(user.id ?? user.uid ?? "");
+  const stats = findObject(payload, (obj) => {
+    const hasCounters = obj.followerCount != null || obj.followingCount != null || obj.heartCount != null || obj.heart != null;
+    if (!hasCounters) return false;
+    const ownerId = obj.id ?? obj.uid ?? obj.userId ?? obj.user_id;
+    const ownerName = obj.uniqueId ?? obj.unique_id ?? obj.username;
+    return (ownerId != null && String(ownerId) === userId) ||
+      (ownerName != null && String(ownerName).toLowerCase() === username.toLowerCase());
+  }) || findObject(payload, (obj) =>
+    obj && typeof obj === "object" &&
+    (obj.followerCount != null || obj.followingCount != null) &&
+    (obj.heartCount != null || obj.heart != null)
+  );
+  return {
+    id: userId,
     username: user.uniqueId ?? user.unique_id ?? username,
     nickname: user.nickname ?? null,
     avatarUrl: user.avatarLarger ?? user.avatarMedium ?? user.avatarThumb ?? null,
     bio: user.signature ?? null,
-    verified: Boolean(user.verified)
-  } : { id: null, username, nickname: null, avatarUrl: null, bio: null, verified: false };
+    verified: Boolean(user.verified),
+    stats: stats ? {
+      following: number(stats.followingCount ?? stats.following_count),
+      followers: number(stats.followerCount ?? stats.follower_count),
+      likes: number(stats.heartCount ?? stats.heart ?? stats.diggCount ?? stats.digg_count)
+    } : null
+  };
 }
 
 function extractItems(payload) {
