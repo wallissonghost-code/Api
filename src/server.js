@@ -24,7 +24,7 @@ const TEST_PAGE = `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Teste TikTok Engine</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b0b0c;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:24px}
@@ -41,6 +41,7 @@ button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer
 <div class="result"><button class="copy" id="copy" type="button" aria-label="Copiar resultado"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"></rect><rect x="4" y="4" width="12" height="12" rx="2"></rect></svg></button><pre id="out">Aguardando teste…</pre></div>
 <script>
 const input=document.getElementById("username"),videoUrl=document.getElementById("videoUrl"),batchUrls=document.getElementById("batchUrls"),profileBtn=document.getElementById("profileBtn"),videoBtn=document.getElementById("videoBtn"),batchBtn=document.getElementById("batchBtn"),sampleBtn=document.getElementById("sampleBtn"),out=document.getElementById("out"),copy=document.getElementById("copy");
+let lastTouchEnd=0;document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});document.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTouchEnd<=300)e.preventDefault();lastTouchEnd=now},{passive:false});
 copy.onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),1200)}catch(err){console.error("Falha ao copiar",err)}};
 async function run(url){out.textContent="Coletando…";try{const r=await fetch(url);const data=await r.json();out.textContent=JSON.stringify(data,null,2)}catch(err){out.textContent="Erro: "+err.message}}
 profileBtn.onclick=()=>run("/api/profile?username="+encodeURIComponent(input.value.trim()));
