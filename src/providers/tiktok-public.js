@@ -364,16 +364,55 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
 export async function inspectPublicTikTokVideo(videoUrl, { signal } = {}) {
   let parsed;
   try { parsed = new URL(String(videoUrl ?? "").trim()); } catch { throw new Error("Invalid TikTok video URL"); }
-  if (!/(^|\.)tiktok\.com$/i.test(parsed.hostname)) throw new Error("Invalid TikTok video URL");
+  if (parsed.protocol !== "https:" || !/(^|\.)tiktok\.com$/i.test(parsed.hostname)) {
+    throw new Error("Invalid TikTok video URL");
+  }
+
+  const originalUrl = parsed.toString();
+  let resolvedUrl = originalUrl;
+  let shortLinkResolved = false;
+  const isShortLink = /^(?:v|vm|vt)\.tiktok\.com$/i.test(parsed.hostname);
+
+  if (isShortLink) {
+    const startedAt = Date.now();
+    const response = await fetch(originalUrl, {
+      signal,
+      redirect: "follow",
+      headers: {
+        "user-agent": USER_AGENT,
+        "accept-language": "pt-BR,pt;q=0.9,en;q=0.8"
+      }
+    });
+    resolvedUrl = response.url;
+    shortLinkResolved = resolvedUrl !== originalUrl;
+    let finalParsed;
+    try { finalParsed = new URL(resolvedUrl); } catch { throw new Error("TikTok short URL did not resolve to a valid URL"); }
+    if (!/(^|\.)tiktok\.com$/i.test(finalParsed.hostname)) {
+      throw new Error("TikTok short URL redirected outside TikTok");
+    }
+    parsed = finalParsed;
+    var redirectDiagnostic = {
+      step: "short-link-resolve",
+      httpStatus: response.status,
+      ok: response.ok,
+      durationMs: Date.now() - startedAt,
+      originalUrl,
+      finalUrl: resolvedUrl,
+      redirected: response.redirected,
+      resolved: shortLinkResolved
+    };
+  }
+
   const match = parsed.pathname.match(/^\/@([^/]+)\/video\/(\d{10,})/i);
-  if (!match) throw new Error("TikTok URL must contain @username/video/videoId");
+  if (!match) throw new Error("TikTok URL did not resolve to @username/video/videoId");
   const username = decodeURIComponent(match[1]);
   const id = match[2];
   const result = await fetchVideoPageItem(username, id, signal);
   return {
     source: "tiktok-public-video-page",
-    input: { url: videoUrl, username, videoId: id },
+    input: { url: originalUrl, resolvedUrl, shortLinkResolved, username, videoId: id },
     collectedAt: new Date().toISOString(),
+    redirectDiagnostic: redirectDiagnostic ?? null,
     diagnostic: result.diagnostic,
     video: result.item ? mapItem(result.item, username) : null
   };
