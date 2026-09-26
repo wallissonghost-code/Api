@@ -132,6 +132,19 @@ async function fetchPublicPostList(secUid, signal, cookie = "") {
       }
     },
     {
+      name: "post-list-v1",
+      path: "/api/post/item_list/v1/",
+      params: {
+        aid: "1988", app_name: "tiktok_web", device_platform: "web_pc", from_page: "user",
+        count: "30", cursor: "0", secUid, cookie_enabled: "true",
+        browser_language: "pt-BR", browser_name: "Mozilla", browser_online: "true",
+        browser_platform: "Win32", browser_version: USER_AGENT, channel: "tiktok_web",
+        focus_state: "true", history_len: "2", is_fullscreen: "false", is_page_visible: "true",
+        language: "pt-BR", os: "windows", region: "BR", priority_region: "BR",
+        screen_height: "900", screen_width: "1440", tz_name: "America/Sao_Paulo", webcast_language: "pt-BR"
+      }
+    },
+    {
       name: "legacy-item-list",
       path: "/api/item_list/",
       params: {
