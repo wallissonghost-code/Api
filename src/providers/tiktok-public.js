@@ -360,3 +360,21 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
     videos: items.map((item) => mapItem(item, username))
   };
 }
+
+export async function inspectPublicTikTokVideo(videoUrl, { signal } = {}) {
+  let parsed;
+  try { parsed = new URL(String(videoUrl ?? "").trim()); } catch { throw new Error("Invalid TikTok video URL"); }
+  if (!/(^|\.)tiktok\.com$/i.test(parsed.hostname)) throw new Error("Invalid TikTok video URL");
+  const match = parsed.pathname.match(/^\/@([^/]+)\/video\/(\d{10,})/i);
+  if (!match) throw new Error("TikTok URL must contain @username/video/videoId");
+  const username = decodeURIComponent(match[1]);
+  const id = match[2];
+  const result = await fetchVideoPageItem(username, id, signal);
+  return {
+    source: "tiktok-public-video-page",
+    input: { url: videoUrl, username, videoId: id },
+    collectedAt: new Date().toISOString(),
+    diagnostic: result.diagnostic,
+    video: result.item ? mapItem(result.item, username) : null
+  };
+}
