@@ -182,8 +182,8 @@ async function fetchPublicPostList(secUid, signal, cookie = "") {
           hasMore: data.hasMore ?? data.has_more ?? null,
           itemCount: Array.isArray(items) ? items.length : 0
         });
-        attempts.push(attempt);
         if (Array.isArray(items) && items.length) {
+          attempts.push(attempt);
           return { items, diagnostic: { step: "post-list", selectedVariant: variant.name, attempts } };
         }
       } catch {
