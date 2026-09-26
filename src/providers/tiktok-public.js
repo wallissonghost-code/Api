@@ -264,7 +264,6 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
       embeddedItemCount: items.length
     },
     postList: null,
-    creatorEmbed: null,
     profileHtmlScan: null,
     videoPages: null
   };
@@ -312,32 +311,6 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
         collectionDiagnostic = null;
       } else {
         collectionDiagnostic = "Profile HTML exposed candidate video IDs, but individual video pages did not expose metrics";
-      }
-    }
-  }
-
-  if (items.length === 0) {
-    const discovered = await discoverFromCreatorEmbed(username, signal);
-    diagnostics.creatorEmbed = discovered.diagnostic;
-    if (discovered.ids.length) {
-      const pageStartedAt = Date.now();
-      const pageItems = [];
-      for (const id of discovered.ids.slice(0, 10)) {
-        const item = await fetchVideoPageItem(username, id, signal, page.cookie);
-        if (item) pageItems.push(item);
-      }
-      diagnostics.videoPages = {
-        step: "individual-video-pages",
-        attempted: Math.min(discovered.ids.length, 10),
-        collected: pageItems.length,
-        durationMs: Date.now() - pageStartedAt
-      };
-      if (pageItems.length) {
-        items = pageItems;
-        collectionMethod = "creator-embed-video-pages";
-        collectionDiagnostic = null;
-      } else {
-        collectionDiagnostic = "Creator embed exposed video IDs, but individual video pages did not expose metrics";
       }
     }
   }
