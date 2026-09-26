@@ -1,5 +1,6 @@
 import http from "node:http";
 import { analyzeProfile } from "./services/profile-analysis.js";
+import { ENGINE_VERSION, ENGINE_VERSION_LABEL } from "./version.js";
 
 const PORT = Number(process.env.PORT || 3000);
 
@@ -31,7 +32,7 @@ button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer
 </style>
 </head>
 <body><main>
-<div class="title"><h1>TikTok Engine</h1><span class="version">v0.0.2 beta</span></div>
+<div class="title"><h1>TikTok Engine</h1><span class="version">${ENGINE_VERSION_LABEL}</span></div>
 <p>Página mínima para testar o motor. Digite um @ público.</p>
 <form id="form"><input id="username" autocomplete="off" placeholder="@usuario" required><button>Analisar</button></form>
 <pre id="out">Aguardando teste…</pre>
@@ -55,7 +56,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && url.pathname === "/health") {
-    return sendJson(res, 200, { ok: true, service: "tiktok-plus-engine" });
+    return sendJson(res, 200, { ok: true, service: "tiktok-plus-engine", engineVersion: ENGINE_VERSION });
   }
 
   if (req.method === "GET" && url.pathname === "/api/profile") {
