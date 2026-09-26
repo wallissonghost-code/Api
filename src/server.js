@@ -27,7 +27,7 @@ const TEST_PAGE = `<!doctype html>
 *{box-sizing:border-box}body{margin:0;background:#0b0b0c;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:24px}
 main{max-width:760px;margin:8vh auto}h1{font-size:28px;margin:0 0 8px}p{color:#999;margin:0 0 24px}.title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.version{font-size:12px;font-weight:700;color:#999;background:#171719;border:1px solid #2d2d30;border-radius:999px;padding:4px 8px;letter-spacing:.03em}
 form{display:flex;gap:10px}input{flex:1;min-width:0;background:#151517;border:1px solid #333;border-radius:12px;padding:15px;color:#fff;font-size:16px;outline:none}
-button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}.result{position:relative;margin-top:22px}.copy{position:absolute;top:10px;right:10px;width:40px;height:40px;padding:0;background:#1b1b1e;border:1px solid #343438;color:#ddd;display:grid;place-items:center;z-index:2}.copy svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2}.copy:active{transform:scale(.94)}pre{margin:0;background:#111113;border:1px solid #242426;border-radius:12px;padding:58px 16px 16px;overflow:auto;white-space:pre-wrap;word-break:break-word;min-height:100px;color:#ddd}
+button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}.result{position:relative;margin-top:22px}.copy{position:absolute;top:10px;right:10px;width:40px;height:40px;padding:0;background:#1b1b1e;border:1px solid #343438;color:#ddd;display:grid;place-items:center;z-index:2}.copy svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2}.copy:active{transform:scale(.94)}.copy.copied{background:#22c55e;border-color:#22c55e;color:#07130a}pre{margin:0;background:#111113;border:1px solid #242426;border-radius:12px;padding:58px 16px 16px;overflow:auto;white-space:pre-wrap;word-break:break-word;min-height:100px;color:#ddd}
 @media(max-width:520px){form{flex-direction:column}button{padding:15px}}
 </style>
 </head>
@@ -37,7 +37,7 @@ button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer
 <form id="form"><input id="username" autocomplete="off" placeholder="@usuario" required><button>Analisar</button></form>
 <div class="result"><button class="copy" id="copy" type="button" aria-label="Copiar resultado"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"></rect><rect x="4" y="4" width="12" height="12" rx="2"></rect></svg></button><pre id="out">Aguardando teste…</pre></div>
 <script>
-const form=document.getElementById("form"),input=document.getElementById("username"),out=document.getElementById("out"),copy=document.getElementById("copy");\ncopy.onclick=()=>navigator.clipboard.writeText(out.textContent);
+const form=document.getElementById("form"),input=document.getElementById("username"),out=document.getElementById("out"),copy=document.getElementById("copy");\ncopy.onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),1200)}catch(err){console.error("Falha ao copiar",err)}};
 form.addEventListener("submit",async e=>{
  e.preventDefault(); out.textContent="Coletando…";
  try{
