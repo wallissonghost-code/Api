@@ -24,14 +24,14 @@ const TEST_PAGE = `<!doctype html>
 <title>Teste TikTok Engine</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b0b0c;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:24px}
-main{max-width:760px;margin:8vh auto}h1{font-size:28px;margin:0 0 8px}p{color:#999;margin:0 0 24px}
+main{max-width:760px;margin:8vh auto}h1{font-size:28px;margin:0 0 8px}p{color:#999;margin:0 0 24px}.title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.version{font-size:12px;font-weight:700;color:#999;background:#171719;border:1px solid #2d2d30;border-radius:999px;padding:4px 8px;letter-spacing:.03em}
 form{display:flex;gap:10px}input{flex:1;min-width:0;background:#151517;border:1px solid #333;border-radius:12px;padding:15px;color:#fff;font-size:16px;outline:none}
 button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}pre{margin-top:22px;background:#111113;border:1px solid #242426;border-radius:12px;padding:16px;overflow:auto;white-space:pre-wrap;word-break:break-word;min-height:100px;color:#ddd}
 @media(max-width:520px){form{flex-direction:column}button{padding:15px}}
 </style>
 </head>
 <body><main>
-<h1>TikTok Engine</h1>
+<div class="title"><h1>TikTok Engine</h1><span class="version">v0.0.2 beta</span></div>
 <p>Página mínima para testar o motor. Digite um @ público.</p>
 <form id="form"><input id="username" autocomplete="off" placeholder="@usuario" required><button>Analisar</button></form>
 <pre id="out">Aguardando teste…</pre>
