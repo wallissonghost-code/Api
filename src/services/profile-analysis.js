@@ -1,6 +1,7 @@
 import { normalizeUsername } from "../core/username.js";
 import { analyzeVideos } from "../core/analyze.js";
 import { fetchPublicTikTokProfile } from "../providers/tiktok-public.js";
+import { ENGINE_VERSION } from "../version.js";
 
 export async function analyzeProfile(input, options = {}) {
   const username = normalizeUsername(input);
@@ -9,7 +10,7 @@ export async function analyzeProfile(input, options = {}) {
 
   return {
     schemaVersion: 1,
-    engineVersion: "0.0.3-beta",
+    engineVersion: ENGINE_VERSION,
     source: collected.source,
     collectionMethod: collected.collectionMethod ?? "unknown",
     collectedAt: collected.collectedAt,
