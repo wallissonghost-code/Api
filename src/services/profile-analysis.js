@@ -9,7 +9,9 @@ export async function analyzeProfile(input, options = {}) {
 
   return {
     schemaVersion: 1,
+    engineVersion: "0.0.3-beta",
     source: collected.source,
+    collectionMethod: collected.collectionMethod ?? "unknown",
     collectedAt: collected.collectedAt,
     profile: collected.profile,
     ...analysis
