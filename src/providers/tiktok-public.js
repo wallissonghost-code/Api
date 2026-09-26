@@ -6,7 +6,6 @@ function findObject(root, predicate, seen = new Set()) {
   if (!root || typeof root !== "object" || seen.has(root)) return null;
   seen.add(root);
   if (predicate(root)) return root;
-
   for (const value of Object.values(root)) {
     const found = findObject(value, predicate, seen);
     if (found) return found;
@@ -19,64 +18,12 @@ function parseEmbeddedJson(html) {
     /<script[^>]+id=["']__UNIVERSAL_DATA_FOR_REHYDRATION__["'][^>]*>([\s\S]*?)<\/script>/i,
     /<script[^>]+id=["']SIGI_STATE["'][^>]*>([\s\S]*?)<\/script>/i
   ];
-
   for (const pattern of patterns) {
     const match = html.match(pattern);
     if (!match) continue;
-    try {
-      return JSON.parse(match[1]);
-    } catch {
-      // Try the next known payload.
-    }
+    try { return JSON.parse(match[1]); } catch {}
   }
-
   throw new Error("TikTok page did not expose a supported public data payload");
-}
-
-function extractItems(payload) {
-  const arrays = [];
-  const visit = (value, seen = new Set()) => {
-    if (!value || typeof value !== "object" || seen.has(value)) return;
-    seen.add(value);
-
-    if (Array.isArray(value)) {
-      if (value.some((item) => item && typeof item === "object" && (item.id || item.itemId))) {
-        arrays.push(value);
-      }
-      for (const item of value) visit(item, seen);
-      return;
-    }
-
-    for (const child of Object.values(value)) visit(child, seen);
-  };
-
-  visit(payload);
-
-  const candidates = arrays
-    .flat()
-    .filter((item) => item && typeof item === "object")
-    .filter((item) => item.video || item.stats || item.statsV2)
-    .filter((item) => item.id || item.itemId);
-
-  return [...new Map(candidates.map((item) => [String(item.id ?? item.itemId), item])).values()];
-}
-
-function extractProfile(payload, username) {
-  const user = findObject(payload, (obj) =>
-    (obj.uniqueId || obj.unique_id) &&
-    String(obj.uniqueId ?? obj.unique_id).toLowerCase() === username.toLowerCase()
-  );
-
-  return user
-    ? {
-        id: String(user.id ?? user.uid ?? ""),
-        username: user.uniqueId ?? user.unique_id ?? username,
-        nickname: user.nickname ?? null,
-        avatarUrl: user.avatarLarger ?? user.avatarMedium ?? user.avatarThumb ?? null,
-        bio: user.signature ?? null,
-        verified: Boolean(user.verified)
-      }
-    : { id: null, username, nickname: null, avatarUrl: null, bio: null, verified: false };
 }
 
 function number(value) {
@@ -84,18 +31,46 @@ function number(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function extractProfile(payload, username) {
+  const user = findObject(payload, (obj) =>
+    (obj.uniqueId || obj.unique_id) &&
+    String(obj.uniqueId ?? obj.unique_id).toLowerCase() === username.toLowerCase()
+  );
+  return user ? {
+    id: String(user.id ?? user.uid ?? ""),
+    secUid: user.secUid ?? user.sec_uid ?? null,
+    username: user.uniqueId ?? user.unique_id ?? username,
+    nickname: user.nickname ?? null,
+    avatarUrl: user.avatarLarger ?? user.avatarMedium ?? user.avatarThumb ?? null,
+    bio: user.signature ?? null,
+    verified: Boolean(user.verified)
+  } : { id: null, secUid: null, username, nickname: null, avatarUrl: null, bio: null, verified: false };
+}
+
+function extractItems(payload) {
+  const found = new Map();
+  const visit = (value, seen = new Set()) => {
+    if (!value || typeof value !== "object" || seen.has(value)) return;
+    seen.add(value);
+    if (!Array.isArray(value) && (value.id || value.itemId) && (value.video || value.stats || value.statsV2)) {
+      found.set(String(value.id ?? value.itemId), value);
+    }
+    for (const child of Object.values(value)) visit(child, seen);
+  };
+  visit(payload);
+  return [...found.values()];
+}
+
 function mapItem(item, username) {
   const stats = item.statsV2 ?? item.stats ?? {};
   const video = item.video ?? {};
   const id = String(item.id ?? item.itemId);
   const text = item.desc ?? item.description ?? "";
-  const hashtags = [...text.matchAll(/#([\p{L}\p{N}_]+)/gu)].map((m) => m[1]);
-
   return {
     id,
     url: `https://www.tiktok.com/@${username}/video/${id}`,
     description: text,
-    hashtags,
+    hashtags: [...text.matchAll(/#([\p{L}\p{N}_]+)/gu)].map((m) => m[1]),
     createdAt: item.createTime ? new Date(number(item.createTime) * 1000).toISOString() : null,
     durationSeconds: number(video.duration),
     coverUrl: video.cover ?? video.dynamicCover ?? video.originCover ?? null,
@@ -109,28 +84,65 @@ function mapItem(item, username) {
   };
 }
 
-export async function fetchPublicTikTokProfile(username, { signal } = {}) {
-  const url = `https://www.tiktok.com/@${encodeURIComponent(username)}`;
-  const response = await fetch(url, {
+async function fetchProfileHtml(username, signal) {
+  const response = await fetch(`https://www.tiktok.com/@${encodeURIComponent(username)}`, {
     signal,
     headers: {
       "user-agent": USER_AGENT,
       "accept-language": "pt-BR,pt;q=0.9,en;q=0.8"
     }
   });
+  if (!response.ok) throw new Error(`TikTok profile responded with HTTP ${response.status}`);
+  return response.text();
+}
 
-  if (!response.ok) {
-    throw new Error(`TikTok responded with HTTP ${response.status}`);
+async function fetchPublicPostList(secUid, signal) {
+  if (!secUid) return [];
+  const params = new URLSearchParams({
+    aid: "1988",
+    count: "35",
+    cursor: "0",
+    secUid
+  });
+  const response = await fetch(`https://www.tiktok.com/api/post/item_list/?${params}`, {
+    signal,
+    headers: {
+      "user-agent": USER_AGENT,
+      "accept": "application/json, text/plain, */*",
+      "referer": "https://www.tiktok.com/"
+    }
+  });
+  if (!response.ok) throw new Error(`TikTok post list responded with HTTP ${response.status}`);
+  const text = await response.text();
+  if (!text.trim()) throw new Error("TikTok post list returned an empty response");
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error("TikTok post list did not return JSON"); }
+  return data.itemList ?? data.item_list ?? [];
+}
+
+export async function fetchPublicTikTokProfile(username, { signal } = {}) {
+  const html = await fetchProfileHtml(username, signal);
+  const payload = parseEmbeddedJson(html);
+  const profile = extractProfile(payload, username);
+
+  let items = extractItems(payload);
+  let collectionMethod = "embedded-profile";
+
+  if (items.length === 0 && profile.secUid) {
+    try {
+      items = await fetchPublicPostList(profile.secUid, signal);
+      collectionMethod = "public-post-list";
+    } catch (error) {
+      collectionMethod = "profile-only";
+    }
   }
 
-  const html = await response.text();
-  const payload = parseEmbeddedJson(html);
-  const videos = extractItems(payload).map((item) => mapItem(item, username));
-
+  const { secUid, ...publicProfile } = profile;
   return {
     source: "tiktok-public-web",
+    collectionMethod,
     collectedAt: new Date().toISOString(),
-    profile: extractProfile(payload, username),
-    videos
+    profile: publicProfile,
+    videos: items.map((item) => mapItem(item, username))
   };
 }
