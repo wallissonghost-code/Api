@@ -204,34 +204,6 @@ function discoverVideoIdsFromProfileHtml(html, payload) {
   };
 }
 
-async function discoverFromCreatorEmbed(username, signal) {
-  const startedAt = Date.now();
-  const profileUrl = `https://www.tiktok.com/@${username}`;
-  const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(profileUrl)}`, {
-    signal,
-    headers: { "user-agent": USER_AGENT, "accept": "application/json" }
-  });
-  const text = await response.text();
-  const diagnostic = {
-    step: "creator-oembed",
-    httpStatus: response.status,
-    ok: response.ok,
-    durationMs: Date.now() - startedAt,
-    responseBytes: Buffer.byteLength(text),
-    videoIdsFound: 0
-  };
-  if (!response.ok || !text.trim()) return { ids: [], diagnostic };
-  try {
-    const data = JSON.parse(text);
-    const source = [data.html, JSON.stringify(data)].filter(Boolean).join(" ");
-    const ids = [...new Set([...source.matchAll(/(?:video\/|data-video-id=[\\"'])(\d{10,})/g)].map((m) => m[1]))];
-    diagnostic.videoIdsFound = ids.length;
-    return { ids, diagnostic };
-  } catch {
-    return { ids: [], diagnostic: { ...diagnostic, parsedJson: false } };
-  }
-}
-
 async function fetchVideoPageItem(username, id, signal, cookie = "") {
   const startedAt = Date.now();
   const requestedUrl = `https://www.tiktok.com/@${username}/video/${id}`;
@@ -370,7 +342,7 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
     }
   }
 
-  diagnostics.totalDurationMs = page.diagnostic.durationMs + (diagnostics.postList?.durationMs ?? 0) + (diagnostics.creatorEmbed?.durationMs ?? 0) + (diagnostics.videoPages?.durationMs ?? 0);
+  diagnostics.totalDurationMs = page.diagnostic.durationMs + (diagnostics.postList?.durationMs ?? 0) + (diagnostics.videoPages?.durationMs ?? 0);
   diagnostics.status = items.length > 0 ? "SUCCESS" : "FAILED";
   diagnostics.result = {
     videosCollected: items.length,
