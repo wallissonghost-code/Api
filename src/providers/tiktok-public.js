@@ -198,7 +198,8 @@ function discoverVideoIdsFromProfileHtml(html, payload) {
       step: "profile-html-scan",
       htmlVideoIdCount: htmlIds.size,
       payloadVideoIdCount: payloadIds.size,
-      uniqueCandidateCount: new Set([...htmlIds, ...payloadIds]).size
+      uniqueCandidateCount: new Set([...htmlIds, ...payloadIds]).size,
+      candidateIds: [...new Set([...htmlIds, ...payloadIds])]
     }
   };
 }
@@ -232,7 +233,9 @@ async function discoverFromCreatorEmbed(username, signal) {
 }
 
 async function fetchVideoPageItem(username, id, signal, cookie = "") {
-  const response = await fetch(`https://www.tiktok.com/@${username}/video/${id}`, {
+  const startedAt = Date.now();
+  const requestedUrl = `https://www.tiktok.com/@${username}/video/${id}`;
+  const response = await fetch(requestedUrl, {
     signal,
     headers: {
       "user-agent": USER_AGENT,
@@ -240,14 +243,33 @@ async function fetchVideoPageItem(username, id, signal, cookie = "") {
       ...(cookie ? { cookie } : {})
     }
   });
-  if (!response.ok) return null;
   const html = await response.text();
+  const diagnostic = {
+    id: String(id),
+    requestedUrl,
+    finalUrl: response.url,
+    redirected: response.redirected,
+    httpStatus: response.status,
+    ok: response.ok,
+    durationMs: Date.now() - startedAt,
+    responseBytes: Buffer.byteLength(html),
+    hasVideoDetailMarker: html.includes("webapp.video-detail"),
+    hasItemStructMarker: html.includes("itemStruct"),
+    embeddedPayloadParsed: false,
+    extractedItemCount: 0,
+    matchedRequestedId: false
+  };
+  if (!response.ok) return { item: null, diagnostic };
   try {
     const payload = parseEmbeddedJson(html);
+    diagnostic.embeddedPayloadParsed = true;
     const items = extractItems(payload);
-    return items.find((item) => String(item.id ?? item.itemId) === String(id)) ?? items[0] ?? null;
+    diagnostic.extractedItemCount = items.length;
+    const matched = items.find((item) => String(item.id ?? item.itemId) === String(id)) ?? null;
+    diagnostic.matchedRequestedId = Boolean(matched);
+    return { item: matched, diagnostic };
   } catch {
-    return null;
+    return { item: null, diagnostic };
   }
 }
 
@@ -298,16 +320,19 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
     if (scanned.ids.length) {
       const pageStartedAt = Date.now();
       const pageItems = [];
+      const attempts = [];
       for (const id of scanned.ids.slice(0, 10)) {
-        const item = await fetchVideoPageItem(username, id, signal, page.cookie);
-        if (item) pageItems.push(item);
+        const result = await fetchVideoPageItem(username, id, signal, page.cookie);
+        attempts.push(result.diagnostic);
+        if (result.item) pageItems.push(result.item);
       }
       diagnostics.videoPages = {
         step: "individual-video-pages",
         source: "profile-html-scan",
         attempted: Math.min(scanned.ids.length, 10),
         collected: pageItems.length,
-        durationMs: Date.now() - pageStartedAt
+        durationMs: Date.now() - pageStartedAt,
+        attempts
       };
       if (pageItems.length) {
         items = pageItems;
