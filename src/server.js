@@ -35,7 +35,7 @@ const TEST_PAGE = `<!doctype html>
 <div class="app">
 <aside class="side"><div class="brand">Tik<b>Analise</b></div><div class="nav"><button class="active">Visão geral</button><button>Meus vídeos</button><button>Insights</button></div><div class="version">${ENGINE_VERSION_LABEL}</div></aside>
 <main class="main">
-<section class="hero"><h1>Analise seus vídeos do TikTok</h1><p>Adicione seus vídeos e descubra o que está funcionando no seu conteúdo.</p><div class="addbar"><input class="input" id="videoUrl" inputmode="url" autocomplete="off" placeholder="Cole a URL do vídeo do TikTok"><button class="primary" id="analyzeBtn">Analisar vídeo</button></div><div class="status" id="status"></div></section>
+<section class="hero"><div style="color:#7f8998;font-size:12px;font-weight:800;letter-spacing:.04em;margin-bottom:10px">v0.0.33Beta</div><h1>Analise seus vídeos do TikTok</h1><p>Adicione seus vídeos e descubra o que está funcionando no seu conteúdo.</p><div class="addbar"><input class="input" id="videoUrl" inputmode="url" autocomplete="off" placeholder="Cole a URL do vídeo do TikTok"><button class="primary" id="analyzeBtn">Analisar vídeo</button></div><div class="status" id="status"></div></section>
 <section class="profile" id="profileCard"><img class="avatar" id="avatar"><div class="profile-copy"><h2 id="nickname"></h2><div class="handle" id="handle"></div><div class="bio" id="bio"></div></div><div class="count" id="profileCount"></div><button class="secondary" id="multiBtn">+ Adicionar vídeos</button></section>
 <section id="dashboard">
 <div class="section-head"><div><h2>Visão dos vídeos analisados</h2><p id="sampleText">Adicione um vídeo para começar.</p></div></div>
