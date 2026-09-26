@@ -152,7 +152,46 @@ async function refreshAllVideos(){
 }
 $("refreshAllBtn").onclick=refreshAllVideos;
 $("analyzeBtn").onclick=()=>analyze($("videoUrl").value);$("videoUrl").addEventListener("keydown",e=>{if(e.key==="Enter")analyze(e.target.value)});
-document.querySelectorAll("[data-nav]").forEach(btn=>btn.onclick=()=>{document.querySelectorAll("[data-nav]").forEach(x=>x.classList.toggle("active",x===btn));const target=btn.dataset.nav==="home"?$("homeSection"):btn.dataset.nav==="overview"?$("overviewSection"):btn.dataset.nav==="insights"?$("insightsSection"):$("videosSection");target.scrollIntoView({behavior:"smooth",block:"start"})});\ndocument.querySelectorAll("[data-mobile-nav]").forEach(btn=>btn.onclick=()=>{document.querySelectorAll("[data-mobile-nav]").forEach(x=>x.classList.toggle("active",x===btn));const key=btn.dataset.mobileNav;const target=key==="profile"?($("profileCard").classList.contains("show")?$("profileCard"):$("overviewSection")):key==="overview"?$("overviewSection"):key==="insights"?$("insightsSection"):$("videosSection");if(target)target.scrollIntoView({behavior:"smooth",block:"start"})});\n$("detailClose").onclick=closeDetailModal;$("detailX").onclick=closeDetailModal;$("detailOpen").onclick=()=>{if(detailVideo)window.open(detailVideo.url,"_blank","noopener,noreferrer")};$("detailUpdate").onclick=async()=>{if(detailVideo){await analyze(detailVideo.url,true);closeDetailModal()}};$("detailRemove").onclick=()=>{if(!detailVideo)return;const p=active();delete p.videos[detailVideo.id];save();render();closeDetailModal()};\nconst modal=$("modal");function openModal(){lockPageScroll();modal.classList.add("show");setTimeout(()=>$("multiUrls").focus(),50)}$("multiBtn").onclick=openModal;$("mobileAdd").onclick=openModal;$("closeModal").onclick=closeAddModal;$("multiUrls").oninput=e=>{const n=e.target.value.split(/\\n+/).map(x=>x.trim()).filter(Boolean).length;$("linkCount").textContent=n+" link"+(n===1?"":"s")+" encontrado"+(n===1?"":"s")};$("analyzeMany").onclick=async()=>{const urls=$("multiUrls").value.split(/\\n+/).map(x=>x.trim()).filter(Boolean);$("analyzeMany").disabled=true;for(let i=0;i<urls.length;i++){ $("linkCount").textContent="Analisando "+(i+1)+" de "+urls.length+"…";await analyze(urls[i],true)}$("analyzeMany").disabled=false;$("multiUrls").value="";$("linkCount").textContent="Concluído: "+urls.length+" vídeo"+(urls.length===1?"":"s");setTimeout(closeAddModal,500)};
+let programmaticNav=null;
+let navReleaseFrame=0;
+function releaseProgrammaticNav(){
+ if(!programmaticNav)return;
+ programmaticNav=null;
+ cancelAnimationFrame(navReleaseFrame);
+ navReleaseFrame=0;
+ syncNavToScroll();
+}
+function watchProgrammaticScroll(){
+ cancelAnimationFrame(navReleaseFrame);
+ let lastY=window.scrollY,stableFrames=0;
+ const check=()=>{
+  if(!programmaticNav)return;
+  const y=window.scrollY;
+  if(Math.abs(y-lastY)<.5)stableFrames++;else stableFrames=0;
+  lastY=y;
+  if(stableFrames>=3){releaseProgrammaticNav();return}
+  navReleaseFrame=requestAnimationFrame(check);
+ };
+ navReleaseFrame=requestAnimationFrame(check);
+}
+function navigateToSection(key,target,selector,attribute){
+ if(!target)return;
+ programmaticNav={key,selector,attribute};
+ setNavActive(selector,key,attribute);
+ target.scrollIntoView({behavior:"smooth",block:"start"});
+ watchProgrammaticScroll();
+}
+document.querySelectorAll("[data-nav]").forEach(btn=>btn.onclick=()=>{
+ const key=btn.dataset.nav;
+ const target=key==="home"?$("homeSection"):key==="overview"?$("overviewSection"):key==="insights"?$("insightsSection"):$("videosSection");
+ navigateToSection(key,target,"[data-nav]","data-nav");
+});
+document.querySelectorAll("[data-mobile-nav]").forEach(btn=>btn.onclick=()=>{
+ const key=btn.dataset.mobileNav;
+ const target=key==="profile"?($("profileCard").classList.contains("show")?$("profileCard"):$("overviewSection")):key==="overview"?$("overviewSection"):key==="insights"?$("insightsSection"):$("videosSection");
+ navigateToSection(key,target,"[data-mobile-nav]","data-mobile-nav");
+});
+if("onscrollend" in window)window.addEventListener("scrollend",releaseProgrammaticNav,{passive:true});\n$("detailClose").onclick=closeDetailModal;$("detailX").onclick=closeDetailModal;$("detailOpen").onclick=()=>{if(detailVideo)window.open(detailVideo.url,"_blank","noopener,noreferrer")};$("detailUpdate").onclick=async()=>{if(detailVideo){await analyze(detailVideo.url,true);closeDetailModal()}};$("detailRemove").onclick=()=>{if(!detailVideo)return;const p=active();delete p.videos[detailVideo.id];save();render();closeDetailModal()};\nconst modal=$("modal");function openModal(){lockPageScroll();modal.classList.add("show");setTimeout(()=>$("multiUrls").focus(),50)}$("multiBtn").onclick=openModal;$("mobileAdd").onclick=openModal;$("closeModal").onclick=closeAddModal;$("multiUrls").oninput=e=>{const n=e.target.value.split(/\\n+/).map(x=>x.trim()).filter(Boolean).length;$("linkCount").textContent=n+" link"+(n===1?"":"s")+" encontrado"+(n===1?"":"s")};$("analyzeMany").onclick=async()=>{const urls=$("multiUrls").value.split(/\\n+/).map(x=>x.trim()).filter(Boolean);$("analyzeMany").disabled=true;for(let i=0;i<urls.length;i++){ $("linkCount").textContent="Analisando "+(i+1)+" de "+urls.length+"…";await analyze(urls[i],true)}$("analyzeMany").disabled=false;$("multiUrls").value="";$("linkCount").textContent="Concluído: "+urls.length+" vídeo"+(urls.length===1?"":"s");setTimeout(closeAddModal,500)};
 const desktopNavSections=[["overview",$("overviewSection")],["insights",$("insightsSection")],["videos",$("videosSection")]].filter(x=>x[1]);
 const mobileNavSections=[["overview",$("overviewSection")],["insights",$("insightsSection")],["videos",$("videosSection")]].filter(x=>x[1]);
 let scrollSpyTick=0;
@@ -168,9 +207,10 @@ function setNavActive(selector,key,attribute){
  document.querySelectorAll(selector).forEach(btn=>btn.classList.toggle("active",btn.getAttribute(attribute)===key));
 }
 function syncNavToScroll(){
- if(scrollSpyTick)return;
+ if(programmaticNav||scrollSpyTick)return;
  scrollSpyTick=requestAnimationFrame(()=>{
   scrollSpyTick=0;
+  if(programmaticNav)return;
   const mobile=window.matchMedia("(max-width:720px)").matches;
   const probe=Math.max(72,Math.min(window.innerHeight*.22,150));
   if(mobile){
@@ -183,7 +223,9 @@ function syncNavToScroll(){
  });
 }
 window.addEventListener("scroll",syncNavToScroll,{passive:true});
-window.addEventListener("resize",syncNavToScroll,{passive:true});
+window.addEventListener("wheel",releaseProgrammaticNav,{passive:true});
+window.addEventListener("touchstart",releaseProgrammaticNav,{passive:true});
+window.addEventListener("resize",()=>{releaseProgrammaticNav();syncNavToScroll()},{passive:true});
 setTimeout(syncNavToScroll,0);\n$("detailModal").addEventListener("click",e=>{if(e.target===$("detailModal"))closeDetailModal()});
 modal.addEventListener("click",e=>{if(e.target===modal)closeAddModal()});
 let lastTouchEnd=0;document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});document.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTouchEnd<=300)e.preventDefault();lastTouchEnd=now},{passive:false});render();
