@@ -1,12 +1,15 @@
-# TikTok Plus Engine
+# TikAnalise
 
-Motor experimental e independente da interface do TikTok Plus.
+Aplicação experimental para analisar **vídeos públicos do TikTok adicionados manualmente por URL**.
 
-## Objetivo
+## Fluxo atual
 
-Receber um `@username` (ou URL de perfil), coletar **somente dados públicos** disponíveis no perfil do TikTok, normalizar os vídeos e devolver métricas públicas + métricas derivadas em um contrato simples de API.
-
-A interface final **não pertence a este repositório**. Este projeto existe para validar o motor antes da integração no TikTok Plus.
+1. O usuário cola uma URL pública de vídeo do TikTok.
+2. O servidor valida/resolução a URL e identifica o vídeo e o perfil.
+3. O provider público tenta coletar o payload exposto pelas páginas públicas do TikTok.
+4. O vídeo é normalizado e devolvido pela API.
+5. A interface salva localmente os vídeos analisados e compara somente essa amostra.
+6. Dados públicos do perfil, quando disponíveis, são exibidos separadamente das métricas somadas dos vídeos analisados.
 
 ## Rodar
 
@@ -16,43 +19,61 @@ Requer Node.js 20+.
 npm start
 ```
 
-Teste:
+Rotas atuais:
 
 ```text
+GET /
 GET /health
-GET /api/profile?username=@usuario
+GET /api/video?url=<url-publica-do-video>
+GET /app-icon.png
 ```
 
-## Estrutura
+## Estrutura atual
 
-- `src/providers/tiktok-public.js`: coleta pública, isolada do restante do sistema.
-- `src/core/username.js`: validação/normalização de usuário.
-- `src/core/analyze.js`: métricas derivadas.
-- `src/services/profile-analysis.js`: orquestração.
-- `src/server.js`: API HTTP mínima.
+- `src/providers/tiktok-public.js`: coleta e normalização de dados públicos do TikTok.
+- `src/core/analyze.js`: métricas derivadas reutilizáveis.
+- `src/server.js`: servidor HTTP e interface web atual.
+- `src/version.js`: versão visível do motor.
+- `public/app-icon.png`: ícone da aplicação.
 
-## Contrato atual
+## Persistência
 
-Para cada vídeo o motor tenta retornar:
+A interface usa `localStorage` (`tikanalise:v1`). Portanto, o histórico salvo atualmente é **por navegador/dispositivo**; ainda não existe conta ou banco central sincronizando Windows e celular.
+
+## Métricas
+
+Para cada vídeo, o provider tenta retornar:
 
 - ID e URL;
-- legenda/descrição;
-- hashtags;
+- legenda/descrição e hashtags;
 - data/hora de publicação;
-- duração;
-- capa;
+- duração e capa;
 - visualizações;
 - curtidas;
 - comentários;
 - compartilhamentos;
-- favoritos/salvamentos, quando expostos publicamente.
+- favoritos/salvamentos quando expostos publicamente.
 
-Também calcula taxas derivadas (curtidas, comentários, compartilhamentos, salvamentos e engajamento por visualização).
+A aplicação calcula engajamento sobre os vídeos analisados usando:
 
-## Limite importante
+```text
+(curtidas + comentários + compartilhamentos + salvos) / visualizações
+```
 
-Sem autenticação/analytics privados, o motor **não afirma possuir** tempo médio assistido, curva de retenção, taxa real de conclusão, fontes de tráfego ou comportamento minuto a minuto. Esses campos ficam explicitamente classificados como indisponíveis em vez de serem estimados como se fossem dados reais.
+Os contadores públicos do perfil (como seguidores, seguindo e curtidas totais) são tratados como dados do **perfil**, não como soma da amostra de vídeos.
+
+## Limites
+
+Sem autenticação e sem analytics privados do TikTok, a aplicação não afirma possuir:
+
+- tempo médio assistido;
+- curva de retenção;
+- taxa real de conclusão;
+- fontes de tráfego;
+- comportamento minuto a minuto.
+
+Esses dados não devem ser estimados e apresentados como métricas reais.
 
 ## Arquitetura
 
-A coleta está atrás de um provider isolado porque o HTML/payload público do TikTok pode mudar ou aplicar bloqueios. Isso permite substituir o coletor sem alterar a API, o analisador ou a futura interface.
+A coleta do TikTok permanece isolada em um provider porque HTML e payloads públicos podem mudar ou sofrer bloqueios. A interface ainda está concentrada em `src/server.js`; a separação futura de HTML/CSS/JS deve ser feita incrementalmente, preservando o comportamento já validado.
