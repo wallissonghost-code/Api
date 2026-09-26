@@ -85,6 +85,7 @@ function mapItem(item, username) {
 }
 
 async function fetchProfileHtml(username, signal) {
+  const startedAt = Date.now();
   const response = await fetch(`https://www.tiktok.com/@${encodeURIComponent(username)}`, {
     signal,
     headers: {
@@ -93,14 +94,24 @@ async function fetchProfileHtml(username, signal) {
     }
   });
   if (!response.ok) throw new Error(`TikTok profile responded with HTTP ${response.status}`);
+  const html = await response.text();
   return {
-    html: await response.text(),
-    cookie: response.headers.get("set-cookie") ?? ""
+    html,
+    cookie: response.headers.get("set-cookie") ?? "",
+    diagnostic: {
+      step: "profile-page",
+      httpStatus: response.status,
+      ok: response.ok,
+      durationMs: Date.now() - startedAt,
+      responseBytes: Buffer.byteLength(html),
+      cookieReceived: Boolean(response.headers.get("set-cookie"))
+    }
   };
 }
 
 async function fetchPublicPostList(secUid, signal, cookie = "") {
-  if (!secUid) return [];
+  if (!secUid) return { items: [], diagnostic: { step: "post-list", skipped: true, reason: "missing-secUid" } };
+  const startedAt = Date.now();
   const params = new URLSearchParams({
     aid: "1988",
     app_name: "tiktok_web",
@@ -124,12 +135,39 @@ async function fetchPublicPostList(secUid, signal, cookie = "") {
       ...(cookie ? { "cookie": cookie } : {})
     }
   });
-  if (!response.ok) throw new Error(`TikTok post list responded with HTTP ${response.status}`);
   const text = await response.text();
-  if (!text.trim()) throw new Error("TikTok post list returned an empty response");
+  const baseDiagnostic = {
+    step: "post-list",
+    httpStatus: response.status,
+    ok: response.ok,
+    durationMs: Date.now() - startedAt,
+    responseBytes: Buffer.byteLength(text),
+    responseEmpty: !text.trim()
+  };
+  if (!response.ok) {
+    const error = new Error(`TikTok post list responded with HTTP ${response.status}`);
+    error.diagnostic = baseDiagnostic;
+    throw error;
+  }
+  if (!text.trim()) return { items: [], diagnostic: { ...baseDiagnostic, parsedJson: false, itemCount: 0 } };
   let data;
-  try { data = JSON.parse(text); } catch { throw new Error("TikTok post list did not return JSON"); }
-  return data.itemList ?? data.item_list ?? [];
+  try { data = JSON.parse(text); } catch {
+    const error = new Error("TikTok post list did not return JSON");
+    error.diagnostic = { ...baseDiagnostic, parsedJson: false };
+    throw error;
+  }
+  const items = data.itemList ?? data.item_list ?? [];
+  return {
+    items,
+    diagnostic: {
+      ...baseDiagnostic,
+      parsedJson: true,
+      apiStatusCode: data.statusCode ?? data.status_code ?? null,
+      apiStatusMessage: data.statusMsg ?? data.status_msg ?? null,
+      hasMore: data.hasMore ?? data.has_more ?? null,
+      itemCount: Array.isArray(items) ? items.length : 0
+    }
+  };
 }
 
 export async function fetchPublicTikTokProfile(username, { signal } = {}) {
@@ -140,25 +178,50 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
   let items = extractItems(payload);
   let collectionMethod = "embedded-profile";
   let collectionDiagnostic = null;
+  const diagnostics = {
+    status: "PARTIAL",
+    totalDurationMs: null,
+    profile: page.diagnostic,
+    payload: {
+      embeddedPayloadParsed: true,
+      profileFound: Boolean(profile.id),
+      secUidFound: Boolean(profile.secUid),
+      embeddedItemCount: items.length
+    },
+    postList: null
+  };
+  const collectionStartedAt = Date.now();
 
   if (items.length === 0 && profile.secUid) {
     try {
-      items = await fetchPublicPostList(profile.secUid, signal, page.cookie);
+      const postResult = await fetchPublicPostList(profile.secUid, signal, page.cookie);
+      items = postResult.items;
+      diagnostics.postList = postResult.diagnostic;
       collectionMethod = items.length ? "public-post-list" : "public-post-list-empty";
       if (!items.length) collectionDiagnostic = "TikTok returned an empty public post list; this commonly indicates the web request was challenged or limited";
     } catch (error) {
       collectionMethod = "profile-only";
+      diagnostics.postList = error?.diagnostic ?? { step: "post-list", error: error instanceof Error ? error.message : "Unknown error" };
       collectionDiagnostic = error instanceof Error ? error.message : "Public post-list request failed";
     }
   } else if (items.length === 0) {
     collectionDiagnostic = "Profile payload did not expose secUid or embedded posts";
   }
 
+  diagnostics.totalDurationMs = page.diagnostic.durationMs + (diagnostics.postList?.durationMs ?? 0);
+  diagnostics.status = items.length > 0 ? "SUCCESS" : "FAILED";
+  diagnostics.result = {
+    videosCollected: items.length,
+    metricsAvailable: items.length > 0,
+    reason: items.length > 0 ? null : collectionDiagnostic
+  };
+
   const { secUid, ...publicProfile } = profile;
   return {
     source: "tiktok-public-web",
     collectionMethod,
     collectionDiagnostic,
+    diagnostics,
     collectedAt: new Date().toISOString(),
     profile: publicProfile,
     videos: items.map((item) => mapItem(item, username))
