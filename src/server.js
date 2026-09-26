@@ -2,7 +2,6 @@ import http from "node:http";
 import { analyzeProfile } from "./services/profile-analysis.js";
 import { ENGINE_VERSION, ENGINE_VERSION_LABEL } from "./version.js";
 import { inspectPublicTikTokVideo } from "./providers/tiktok-public.js";
-import { probeTikTokProfileBrowser } from "./providers/tiktok-browser-probe.js";
 import { analyzeVideoBatch } from "./services/video-batch-analysis.js";
 
 const PORT = Number(process.env.PORT || 3000);
@@ -92,28 +91,6 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, status, { ok: false, error: status === 400 ? "INVALID_VIDEO_URLS" : "COLLECTION_FAILED", message });
     } finally {
       if (timeout) clearTimeout(timeout);
-    }
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/browser-probe") {
-    const raw = String(url.searchParams.get("username") || "").trim().replace(/^@/, "");
-    if (!/^[A-Za-z0-9._]{2,24}$/.test(raw)) {
-      return sendJson(res, 400, { ok: false, error: "INVALID_USERNAME" });
-    }
-    try {
-      const result = await probeTikTokProfileBrowser(raw);
-      return sendJson(res, 200, { schemaVersion: 1, engineVersion: ENGINE_VERSION, ...result });
-    } catch (error) {
-      return sendJson(res, 502, {
-        ok: false,
-        engineVersion: ENGINE_VERSION,
-        error: error?.code === "BROWSER_PROBE_TIMEOUT" ? "BROWSER_PROBE_TIMEOUT" : "BROWSER_PROBE_FAILED",
-        message: error instanceof Error ? error.message : "Unknown error",
-        diagnostic: {
-          stage: error?.probeStage ?? "unknown",
-          durationMs: error?.probeDurationMs ?? null
-        }
-      });
     }
   }
 
