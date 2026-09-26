@@ -6,7 +6,14 @@ function collectVideoIds(value) {
   const ids = new Set();
   const scan = (text) => {
     if (!text) return;
-    for (const match of String(text).matchAll(/(?:\\/video\\/|data-video-id=[\"'])(\\d{10,})/gi)) ids.add(match[1]);
+    const source = String(text);
+    const patterns = [
+      /\/video\/(\d{10,})/gi,
+      /data-video-id=["'](\d{10,})/gi
+    ];
+    for (const pattern of patterns) {
+      for (const match of source.matchAll(pattern)) ids.add(match[1]);
+    }
   };
   const visit = (node, seen = new Set()) => {
     if (node == null) return;
