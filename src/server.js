@@ -1,6 +1,7 @@
 import http from "node:http";
 import { analyzeProfile } from "./services/profile-analysis.js";
 import { ENGINE_VERSION, ENGINE_VERSION_LABEL } from "./version.js";
+import { inspectPublicTikTokVideo } from "./providers/tiktok-public.js";
 
 const PORT = Number(process.env.PORT || 3000);
 
@@ -26,25 +27,22 @@ const TEST_PAGE = `<!doctype html>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b0b0c;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:24px}
 main{max-width:760px;margin:8vh auto}h1{font-size:28px;margin:0 0 8px}p{color:#999;margin:0 0 24px}.title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.version{font-size:12px;font-weight:700;color:#999;background:#171719;border:1px solid #2d2d30;border-radius:999px;padding:4px 8px;letter-spacing:.03em}
-form{display:flex;gap:10px}input{flex:1;min-width:0;background:#151517;border:1px solid #333;border-radius:12px;padding:15px;color:#fff;font-size:16px;outline:none}
+form{display:grid;gap:10px}.field{display:flex;gap:10px}input{flex:1;min-width:0;background:#151517;border:1px solid #333;border-radius:12px;padding:15px;color:#fff;font-size:16px;outline:none}
 button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}.result{position:relative;margin-top:22px}.copy{position:absolute;top:10px;right:10px;width:40px;height:40px;padding:0;background:#1b1b1e;border:1px solid #343438;color:#ddd;display:grid;place-items:center;z-index:2}.copy svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2}.copy:active{transform:scale(.94)}.copy.copied{background:#22c55e;border-color:#22c55e;color:#07130a}pre{margin:0;background:#111113;border:1px solid #242426;border-radius:12px;padding:58px 16px 16px;overflow:auto;white-space:pre-wrap;word-break:break-word;min-height:100px;color:#ddd}
-@media(max-width:520px){form{flex-direction:column}button{padding:15px}}
+@media(max-width:520px){.field{flex-direction:column}button{padding:15px}}
 </style>
 </head>
 <body><main>
 <div class="title"><h1>TikTok Engine</h1><span class="version">${ENGINE_VERSION_LABEL}</span></div>
-<p>Página mínima para testar o motor. Digite um @ público.</p>
-<form id="form"><input id="username" autocomplete="off" placeholder="@usuario" required><button>Analisar</button></form>
+<p>Página mínima para testar o motor público.</p>
+<form id="form"><div class="field"><input id="username" autocomplete="off" placeholder="@usuario"><button type="button" id="profileBtn">Analisar @</button></div><div class="field"><input id="videoUrl" autocomplete="off" inputmode="url" placeholder="Link do vídeo TikTok"><button type="button" id="videoBtn">Testar vídeo</button></div></form>
 <div class="result"><button class="copy" id="copy" type="button" aria-label="Copiar resultado"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"></rect><rect x="4" y="4" width="12" height="12" rx="2"></rect></svg></button><pre id="out">Aguardando teste…</pre></div>
 <script>
-const form=document.getElementById("form"),input=document.getElementById("username"),out=document.getElementById("out"),copy=document.getElementById("copy");\ncopy.onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),1200)}catch(err){console.error("Falha ao copiar",err)}};
-form.addEventListener("submit",async e=>{
- e.preventDefault(); out.textContent="Coletando…";
- try{
-  const r=await fetch("/api/profile?username="+encodeURIComponent(input.value.trim()));
-  const data=await r.json(); out.textContent=JSON.stringify(data,null,2);
- }catch(err){out.textContent="Erro: "+err.message}
-});
+const input=document.getElementById("username"),videoUrl=document.getElementById("videoUrl"),profileBtn=document.getElementById("profileBtn"),videoBtn=document.getElementById("videoBtn"),out=document.getElementById("out"),copy=document.getElementById("copy");
+copy.onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),1200)}catch(err){console.error("Falha ao copiar",err)}};
+async function run(url){out.textContent="Coletando…";try{const r=await fetch(url);const data=await r.json();out.textContent=JSON.stringify(data,null,2)}catch(err){out.textContent="Erro: "+err.message}}
+profileBtn.onclick=()=>run("/api/profile?username="+encodeURIComponent(input.value.trim()));
+videoBtn.onclick=()=>run("/api/video?url="+encodeURIComponent(videoUrl.value.trim()));
 </script>
 </main></body></html>`;
 
@@ -57,6 +55,23 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/health") {
     return sendJson(res, 200, { ok: true, service: "tiktok-plus-engine", engineVersion: ENGINE_VERSION });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/video") {
+    const videoUrl = url.searchParams.get("url");
+    let timeout;
+    try {
+      const controller = new AbortController();
+      timeout = setTimeout(() => controller.abort(), 15_000);
+      const result = await inspectPublicTikTokVideo(videoUrl, { signal: controller.signal });
+      return sendJson(res, 200, { schemaVersion: 1, engineVersion: ENGINE_VERSION, ...result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      const status = /invalid|must contain|required/i.test(message) ? 400 : 502;
+      return sendJson(res, status, { ok: false, error: status === 400 ? "INVALID_VIDEO_URL" : "COLLECTION_FAILED", message });
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
   }
 
   if (req.method === "GET" && url.pathname === "/api/profile") {
