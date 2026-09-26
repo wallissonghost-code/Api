@@ -46,7 +46,11 @@ function extractProfile(payload, username) {
     const idMatches = Boolean(userId) && ownerId != null && String(ownerId) === userId;
     const nameMatches = ownerName != null && String(ownerName).toLowerCase() === username.toLowerCase();
     return idMatches || nameMatches;
-  });
+  }) || findObject(payload, (obj) =>
+    obj && typeof obj === "object" &&
+    (obj.followerCount != null || obj.followingCount != null) &&
+    (obj.heartCount != null || obj.heart != null)
+  );
   return {
     id: userId,
     username: user.uniqueId ?? user.unique_id ?? username,
