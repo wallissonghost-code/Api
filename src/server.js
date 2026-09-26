@@ -23,6 +23,9 @@ const TEST_PAGE = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07090c">
+<link rel="icon" type="image/png" href="/app-icon.png">
+<link rel="apple-touch-icon" href="/app-icon.png">
+<meta name="apple-mobile-web-app-title" content="TikAnalise">
 <title>TikAnalise</title>
 <style>
 :root{--bg:#07090c;--panel:#0d1117;--panel2:#111720;--line:#202833;--text:#f7f8fa;--muted:#8e98a8;--pink:#ff2f69;--cyan:#25f4ee;--good:#42e6a4}
