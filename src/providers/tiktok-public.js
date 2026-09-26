@@ -180,6 +180,16 @@ function discoverVideoIdsFromProfileHtml(html, payload) {
     for (const match of html.matchAll(pattern)) htmlIds.add(match[1]);
   }
 
+  const canonicalVideoLinks = [...html.matchAll(/https?:\\?\/\\?\/(?:www\\?\.)?tiktok\\?\.com\\?\/@([^\/"'\\?]+)\\?\/video\\?\/(\d{10,})/gi)]
+    .slice(0, 50)
+    .map((match) => ({ username: match[1], id: match[2] }));
+
+  const endpointHints = [...new Set(
+    [...html.matchAll(/(?:https?:\\?\/\\?\/[^"'<>\\s]+)?\/api\/[A-Za-z0-9_?=&.%/\\-]+/g)]
+      .map((match) => match[0].replaceAll("\\\/", "/"))
+      .filter((value) => /(?:item|post|video|feed)/i.test(value))
+  )].slice(0, 50);
+
   const payloadIds = new Set();
   const visit = (value, seen = new Set()) => {
     if (!value || typeof value !== "object" || seen.has(value)) return;
@@ -192,14 +202,19 @@ function discoverVideoIdsFromProfileHtml(html, payload) {
   };
   visit(payload);
 
+  const ids = [...new Set([...htmlIds, ...payloadIds, ...canonicalVideoLinks.map((item) => item.id)])];
   return {
-    ids: [...new Set([...htmlIds, ...payloadIds])],
+    ids,
     diagnostic: {
       step: "profile-html-scan",
       htmlVideoIdCount: htmlIds.size,
       payloadVideoIdCount: payloadIds.size,
-      uniqueCandidateCount: new Set([...htmlIds, ...payloadIds]).size,
-      candidateIds: [...new Set([...htmlIds, ...payloadIds])]
+      canonicalVideoLinkCount: canonicalVideoLinks.length,
+      canonicalVideoLinks,
+      endpointHintCount: endpointHints.length,
+      endpointHints,
+      uniqueCandidateCount: ids.length,
+      candidateIds: ids
     }
   };
 }
