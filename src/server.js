@@ -176,6 +176,11 @@ function watchProgrammaticScroll(){
 }
 function navigateToSection(key,target,selector,attribute){
  if(!target)return;
+ if(programmaticNav){
+  cancelAnimationFrame(navReleaseFrame);
+  navReleaseFrame=0;
+  window.scrollTo({top:window.scrollY,behavior:"auto"});
+ }
  programmaticNav={key,selector,attribute};
  setNavActive(selector,key,attribute);
  target.scrollIntoView({behavior:"smooth",block:"start"});
