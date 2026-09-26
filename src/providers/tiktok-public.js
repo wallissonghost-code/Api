@@ -100,6 +100,9 @@ async function fetchPublicPostList(secUid, signal) {
   if (!secUid) return [];
   const params = new URLSearchParams({
     aid: "1988",
+    app_name: "tiktok_web",
+    device_platform: "web_pc",
+    from_page: "user",
     count: "35",
     cursor: "0",
     secUid
@@ -109,7 +112,11 @@ async function fetchPublicPostList(secUid, signal) {
     headers: {
       "user-agent": USER_AGENT,
       "accept": "application/json, text/plain, */*",
-      "referer": "https://www.tiktok.com/"
+      "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
+      "referer": "https://www.tiktok.com/",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin"
     }
   });
   if (!response.ok) throw new Error(`TikTok post list responded with HTTP ${response.status}`);
@@ -127,20 +134,26 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
 
   let items = extractItems(payload);
   let collectionMethod = "embedded-profile";
+  let collectionDiagnostic = null;
 
   if (items.length === 0 && profile.secUid) {
     try {
       items = await fetchPublicPostList(profile.secUid, signal);
-      collectionMethod = "public-post-list";
+      collectionMethod = items.length ? "public-post-list" : "public-post-list-empty";
+      if (!items.length) collectionDiagnostic = "TikTok returned no public posts to the server request";
     } catch (error) {
       collectionMethod = "profile-only";
+      collectionDiagnostic = error instanceof Error ? error.message : "Public post-list request failed";
     }
+  } else if (items.length === 0) {
+    collectionDiagnostic = "Profile payload did not expose secUid or embedded posts";
   }
 
   const { secUid, ...publicProfile } = profile;
   return {
     source: "tiktok-public-web",
     collectionMethod,
+    collectionDiagnostic,
     collectedAt: new Date().toISOString(),
     profile: publicProfile,
     videos: items.map((item) => mapItem(item, username))
