@@ -64,20 +64,39 @@ export async function probeTikTokProfileBrowser(username) {
         const meta = { status: response.status(), path: url.pathname, queryKeys: [...url.searchParams.keys()].sort(), contentType: headers["content-type"] || null, contentLength: Number(headers["content-length"] || 0) || null };
         if (url.pathname === "/api/post/item_list/" && response.ok()) {
           try {
-            const data = await response.json();
-            const items = data?.itemList ?? data?.item_list ?? [];
-            meta.bodyParsed = true;
-            meta.itemCount = Array.isArray(items) ? items.length : 0;
-            meta.hasMore = data?.hasMore ?? data?.has_more ?? null;
-            meta.cursor = data?.cursor ?? data?.maxCursor ?? data?.max_cursor ?? null;
-            if (Array.isArray(items)) {
-              for (const item of items) {
-                const id = String(item?.id ?? item?.itemId ?? "");
-                if (/^\\d{10,}$/.test(id)) postItems.set(id, item);
+            const body = await withTimeout(response.body(), 2500, "post-list-body");
+            meta.bodyBytes = body.length;
+            const text = body.toString("utf8");
+            meta.bodyEmpty = !text.trim();
+            meta.bodySample = text.slice(0, 240).replace(/[\r\n\t]+/g, " ");
+            if (!text.trim()) {
+              meta.bodyParsed = false;
+              meta.bodyReadError = "empty-body";
+            } else {
+              try {
+                const data = JSON.parse(text);
+                const items = data?.itemList ?? data?.item_list ?? [];
+                meta.bodyParsed = true;
+                meta.topLevelKeys = data && typeof data === "object" ? Object.keys(data).slice(0, 30) : [];
+                meta.itemCount = Array.isArray(items) ? items.length : 0;
+                meta.hasMore = data?.hasMore ?? data?.has_more ?? null;
+                meta.cursor = data?.cursor ?? data?.maxCursor ?? data?.max_cursor ?? null;
+                if (Array.isArray(items)) {
+                  for (const item of items) {
+                    const id = String(item?.id ?? item?.itemId ?? "");
+                    if (/^\\d{10,}$/.test(id)) postItems.set(id, item);
+                  }
+                }
+              } catch (parseError) {
+                meta.bodyParsed = false;
+                meta.bodyReadError = "invalid-json";
+                meta.parseMessage = parseError instanceof Error ? parseError.message : "JSON parse failed";
               }
             }
-          } catch {
+          } catch (bodyError) {
             meta.bodyParsed = false;
+            meta.bodyReadError = bodyError?.code === "BROWSER_PROBE_TIMEOUT" ? "body-timeout" : "body-unavailable";
+            meta.bodyReadMessage = bodyError instanceof Error ? bodyError.message : "Response body unavailable";
           }
         }
         responses.push(meta);
