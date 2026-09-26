@@ -111,61 +111,101 @@ async function fetchProfileHtml(username, signal) {
 
 async function fetchPublicPostList(secUid, signal, cookie = "") {
   if (!secUid) return { items: [], diagnostic: { step: "post-list", skipped: true, reason: "missing-secUid" } };
-  const startedAt = Date.now();
-  const params = new URLSearchParams({
-    aid: "1988",
-    app_name: "tiktok_web",
-    device_platform: "web_pc",
-    from_page: "user",
-    count: "30",
-    cookie_enabled: "true",
-    cursor: "0",
-    secUid
-  });
-  const response = await fetch(`https://www.tiktok.com/api/post/item_list/?${params}`, {
-    signal,
-    headers: {
-      "user-agent": USER_AGENT,
-      "accept": "application/json, text/plain, */*",
-      "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
-      "referer": "https://www.tiktok.com/",
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-      ...(cookie ? { "cookie": cookie } : {})
+
+  const variants = [
+    {
+      name: "minimal-web-pc",
+      path: "/api/post/item_list/",
+      params: { aid: "1988", app_name: "tiktok_web", device_platform: "web_pc", from_page: "user", count: "30", cookie_enabled: "true", cursor: "0", secUid }
+    },
+    {
+      name: "browser-context-web-pc",
+      path: "/api/post/item_list/",
+      params: {
+        aid: "1988", app_name: "tiktok_web", device_platform: "web_pc", from_page: "user",
+        count: "30", cursor: "0", secUid, cookie_enabled: "true",
+        browser_language: "pt-BR", browser_name: "Mozilla", browser_online: "true",
+        browser_platform: "Win32", browser_version: USER_AGENT, channel: "tiktok_web",
+        focus_state: "true", history_len: "2", is_fullscreen: "false", is_page_visible: "true",
+        language: "pt-BR", os: "windows", region: "BR", priority_region: "BR",
+        screen_height: "900", screen_width: "1440", tz_name: "America/Sao_Paulo", webcast_language: "pt-BR"
+      }
+    },
+    {
+      name: "legacy-item-list",
+      path: "/api/item_list/",
+      params: {
+        aid: "1988", app_name: "tiktok_web", appId: "1233", device_platform: "web",
+        count: "30", id: "0", type: "1", secUid, maxCursor: "0", minCursor: "0",
+        sourceType: "8", cookie_enabled: "true", region: "BR", language: "pt-BR"
+      }
     }
-  });
-  const text = await response.text();
-  const baseDiagnostic = {
-    step: "post-list",
-    httpStatus: response.status,
-    ok: response.ok,
-    durationMs: Date.now() - startedAt,
-    responseBytes: Buffer.byteLength(text),
-    responseEmpty: !text.trim()
-  };
-  if (!response.ok) {
-    const error = new Error(`TikTok post list responded with HTTP ${response.status}`);
-    error.diagnostic = baseDiagnostic;
-    throw error;
+  ];
+
+  const attempts = [];
+  for (const variant of variants) {
+    const startedAt = Date.now();
+    const params = new URLSearchParams(variant.params);
+    const response = await fetch(`https://www.tiktok.com${variant.path}?${params}`, {
+      signal,
+      headers: {
+        "user-agent": USER_AGENT,
+        "accept": "application/json, text/plain, */*",
+        "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
+        "referer": "https://www.tiktok.com/",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        ...(cookie ? { "cookie": cookie } : {})
+      }
+    });
+    const text = await response.text();
+    const attempt = {
+      name: variant.name,
+      path: variant.path,
+      httpStatus: response.status,
+      ok: response.ok,
+      durationMs: Date.now() - startedAt,
+      responseBytes: Buffer.byteLength(text),
+      responseEmpty: !text.trim(),
+      parsedJson: false,
+      itemCount: 0
+    };
+    if (response.ok && text.trim()) {
+      try {
+        const data = JSON.parse(text);
+        const items = data.itemList ?? data.item_list ?? data.items ?? [];
+        Object.assign(attempt, {
+          parsedJson: true,
+          apiStatusCode: data.statusCode ?? data.status_code ?? null,
+          apiStatusMessage: data.statusMsg ?? data.status_msg ?? null,
+          hasMore: data.hasMore ?? data.has_more ?? null,
+          itemCount: Array.isArray(items) ? items.length : 0
+        });
+        attempts.push(attempt);
+        if (Array.isArray(items) && items.length) {
+          return { items, diagnostic: { step: "post-list", selectedVariant: variant.name, attempts } };
+        }
+      } catch {
+        attempt.parseError = true;
+      }
+    }
+    attempts.push(attempt);
   }
-  if (!text.trim()) return { items: [], diagnostic: { ...baseDiagnostic, parsedJson: false, itemCount: 0 } };
-  let data;
-  try { data = JSON.parse(text); } catch {
-    const error = new Error("TikTok post list did not return JSON");
-    error.diagnostic = { ...baseDiagnostic, parsedJson: false };
-    throw error;
-  }
-  const items = data.itemList ?? data.item_list ?? [];
+
   return {
-    items,
+    items: [],
     diagnostic: {
-      ...baseDiagnostic,
-      parsedJson: true,
-      apiStatusCode: data.statusCode ?? data.status_code ?? null,
-      apiStatusMessage: data.statusMsg ?? data.status_msg ?? null,
-      hasMore: data.hasMore ?? data.has_more ?? null,
-      itemCount: Array.isArray(items) ? items.length : 0
+      step: "post-list",
+      selectedVariant: null,
+      attempts,
+      httpStatus: attempts[0]?.httpStatus ?? null,
+      ok: attempts.some((item) => item.ok),
+      durationMs: attempts.reduce((sum, item) => sum + item.durationMs, 0),
+      responseBytes: attempts.reduce((sum, item) => sum + item.responseBytes, 0),
+      responseEmpty: attempts.every((item) => item.responseEmpty),
+      parsedJson: attempts.some((item) => item.parsedJson),
+      itemCount: 0
     }
   };
 }
