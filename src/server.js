@@ -22,39 +22,68 @@ const TEST_PAGE = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Teste TikTok Engine</title>
+<meta name="theme-color" content="#07090c">
+<title>TikAnalise</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0b0b0c;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:24px}
-main{max-width:760px;margin:8vh auto}h1{font-size:28px;margin:0 0 8px}p{color:#999;margin:0 0 24px}.title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.version{font-size:12px;font-weight:700;color:#999;background:#171719;border:1px solid #2d2d30;border-radius:999px;padding:4px 8px;letter-spacing:.03em}
-form{display:grid;gap:10px}.field{display:flex;gap:10px}input{flex:1;min-width:0;background:#151517;border:1px solid #333;border-radius:12px;padding:15px;color:#fff;font-size:16px;outline:none}
-button{border:0;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}.result{position:relative;margin-top:22px}.copy{position:absolute;top:10px;right:10px;width:40px;height:40px;padding:0;background:#1b1b1e;border:1px solid #343438;color:#ddd;display:grid;place-items:center;z-index:2}.copy svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2}.copy:active{transform:scale(.94)}.copy.copied{background:#22c55e;border-color:#22c55e;color:#07130a}pre{margin:0;background:#111113;border:1px solid #242426;border-radius:12px;padding:58px 16px 16px;overflow:auto;white-space:pre-wrap;word-break:break-word;min-height:100px;color:#ddd}
-@media(max-width:520px){.field{flex-direction:column}button{padding:15px}}
+:root{--bg:#07090c;--panel:#0d1117;--panel2:#111720;--line:#202833;--text:#f7f8fa;--muted:#8e98a8;--pink:#ff2f69;--cyan:#25f4ee;--good:#42e6a4}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{min-height:100vh}button,input,textarea{font:inherit}button{cursor:pointer}.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}.side{border-right:1px solid var(--line);padding:24px 16px;position:sticky;top:0;height:100vh;background:#080b0f}.brand{font-weight:900;font-size:20px;padding:0 10px 28px}.brand b{color:var(--pink)}.nav{display:grid;gap:8px}.nav button{background:transparent;color:var(--muted);border:0;text-align:left;padding:12px 14px;border-radius:12px}.nav button.active{background:#151b24;color:#fff}.version{position:absolute;bottom:24px;left:26px;color:#657080;font-size:12px}.main{padding:36px;max-width:1280px;width:100%;margin:auto}.hero{padding:8px 0 26px}.hero h1{font-size:38px;line-height:1.05;margin:0 0 10px}.hero p{color:var(--muted);margin:0 0 22px}.addbar{display:flex;gap:10px;max-width:780px}.input{flex:1;background:#0e131a;border:1px solid #29313c;border-radius:14px;color:#fff;padding:16px;outline:none}.input:focus{border-color:#495565}.primary{border:0;border-radius:14px;padding:0 22px;background:linear-gradient(135deg,var(--pink),#ff4c7c);color:white;font-weight:800}.secondary{border:1px solid var(--line);border-radius:12px;padding:11px 15px;background:#11161d;color:#fff}.profile{display:none;align-items:center;gap:16px;padding:18px;background:linear-gradient(145deg,#0f141b,#0b1016);border:1px solid var(--line);border-radius:18px;margin-bottom:18px}.profile.show{display:flex}.avatar{width:72px;height:72px;border-radius:50%;object-fit:cover;background:#171d25}.profile-copy{min-width:0;flex:1}.profile-copy h2{font-size:20px;margin:0 0 2px}.handle{color:#c2cad5;font-weight:700}.bio{color:var(--muted);font-size:13px;margin-top:6px;white-space:pre-line}.count{font-weight:800;color:#fff;background:#141b24;padding:9px 12px;border-radius:999px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin:26px 0 12px}.section-head h2{font-size:20px;margin:0}.section-head p{margin:4px 0 0;color:var(--muted);font-size:13px}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.metric{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}.metric span{display:block;color:var(--muted);font-size:12px;margin-bottom:8px}.metric strong{font-size:23px}.grid2{display:grid;grid-template-columns:1.3fr .7fr;gap:14px;margin-top:14px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}.panel h3{margin:0 0 14px;font-size:16px}.chart{height:230px;display:flex;align-items:flex-end;gap:10px;border-bottom:1px solid #29313b;padding:20px 6px 0}.barwrap{height:100%;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:22px}.bar{width:100%;max-width:48px;min-height:3px;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,var(--pink),#7c2248)}.barlabel{font-size:10px;color:#737f8f;margin-top:7px}.insights{display:grid;gap:9px}.insight{background:#101720;border:1px solid #202a36;padding:13px;border-radius:12px;font-size:13px;line-height:1.4}.videos{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.video{overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:16px}.cover{width:100%;aspect-ratio:16/9;object-fit:cover;background:#141920}.vbody{padding:13px}.vdesc{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#dce1e8}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:11px}.stat small{display:block;color:var(--muted);font-size:9px}.stat b{font-size:12px}.vactions{display:flex;gap:7px;margin-top:12px}.vactions button{flex:1;border:1px solid var(--line);background:#121821;color:#dce2ea;border-radius:9px;padding:8px;font-size:11px}.empty{border:1px dashed #29313c;border-radius:16px;padding:32px;text-align:center;color:var(--muted)}.status{min-height:22px;color:var(--muted);font-size:13px;margin-top:10px}.bottom{display:none}.modal{position:fixed;inset:0;background:#000a;display:none;place-items:center;padding:18px;z-index:20}.modal.show{display:grid}.modalbox{width:min(560px,100%);background:#0d1218;border:1px solid #29313c;border-radius:20px;padding:20px}.modalbox h3{margin:0 0 6px}.modalbox p{color:var(--muted);font-size:13px}.modalbox textarea{width:100%;min-height:160px;resize:vertical;background:#080c11;border:1px solid #29313c;border-radius:13px;color:#fff;padding:13px}.modalactions{display:flex;gap:9px;justify-content:flex-end;margin-top:12px}
+@media(max-width:1000px){.metrics{grid-template-columns:repeat(3,1fr)}.videos{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){body{padding-bottom:82px}.app{display:block}.side{display:none}.main{padding:24px 16px 16px}.hero{padding-top:18px}.hero h1{font-size:30px;max-width:330px}.addbar{flex-direction:column}.primary{padding:15px}.profile{align-items:flex-start;flex-wrap:wrap}.avatar{width:58px;height:58px}.count{font-size:12px}.metrics{grid-template-columns:repeat(2,1fr)}.metric strong{font-size:21px}.grid2{grid-template-columns:1fr}.videos{grid-template-columns:1fr}.bottom{position:fixed;display:grid;grid-template-columns:repeat(5,1fr);bottom:0;left:0;right:0;background:#090d12eF;backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:8px 5px calc(8px + env(safe-area-inset-bottom));z-index:10}.bottom button{border:0;background:transparent;color:#7f8998;font-size:10px;padding:8px 2px}.bottom .add{width:46px;height:46px;border-radius:50%;background:var(--pink);color:#fff;font-size:24px;margin:-22px auto 0;box-shadow:0 8px 25px #ff2f6955}.section-head{align-items:flex-start}.chart{height:190px}}
 </style>
 </head>
-<body><main>
-<div class="title"><h1>TikTok Engine</h1><span class="version">${ENGINE_VERSION_LABEL}</span></div>
-<p>Página mínima para testar o motor público.</p>
-<form id="form"><div class="field"><input id="videoUrl" autocomplete="off" inputmode="url" placeholder="URL do vídeo TikTok"><button type="button" id="videoBtn">Analisar vídeo</button></div></form>
-<div class="result"><button class="copy" id="copy" type="button" aria-label="Copiar resultado"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"></rect><rect x="4" y="4" width="12" height="12" rx="2"></rect></svg></button><pre id="out">Aguardando teste…</pre></div>
+<body>
+<div class="app">
+<aside class="side"><div class="brand">Tik<b>Analise</b></div><div class="nav"><button class="active">Visão geral</button><button>Meus vídeos</button><button>Insights</button></div><div class="version">${ENGINE_VERSION_LABEL}</div></aside>
+<main class="main">
+<section class="hero"><h1>Analise seus vídeos do TikTok</h1><p>Adicione seus vídeos e descubra o que está funcionando no seu conteúdo.</p><div class="addbar"><input class="input" id="videoUrl" inputmode="url" autocomplete="off" placeholder="Cole a URL do vídeo do TikTok"><button class="primary" id="analyzeBtn">Analisar vídeo</button></div><div class="status" id="status"></div></section>
+<section class="profile" id="profileCard"><img class="avatar" id="avatar"><div class="profile-copy"><h2 id="nickname"></h2><div class="handle" id="handle"></div><div class="bio" id="bio"></div></div><div class="count" id="profileCount"></div><button class="secondary" id="multiBtn">+ Adicionar vídeos</button></section>
+<section id="dashboard">
+<div class="section-head"><div><h2>Visão dos vídeos analisados</h2><p id="sampleText">Adicione um vídeo para começar.</p></div></div>
+<div class="metrics">
+<div class="metric"><span>Vídeos analisados</span><strong id="mVideos">0</strong></div>
+<div class="metric"><span>Visualizações</span><strong id="mViews">0</strong></div>
+<div class="metric"><span>Curtidas</span><strong id="mLikes">0</strong></div>
+<div class="metric"><span>Comentários</span><strong id="mComments">0</strong></div>
+<div class="metric"><span>Compartilhamentos</span><strong id="mShares">0</strong></div>
+<div class="metric"><span>Engajamento médio</span><strong id="mEng">—</strong></div>
+</div>
+<div class="grid2"><div class="panel"><h3>Desempenho dos vídeos · Visualizações</h3><div class="chart" id="chart"></div></div><div class="panel"><h3>O que seus vídeos estão mostrando</h3><div class="insights" id="insights"></div></div></div>
+<div class="section-head"><div><h2>Meus vídeos</h2><p>Somente vídeos que você adicionou ao sistema.</p></div></div>
+<div class="videos" id="videos"></div>
+</section>
+</main></div>
+<nav class="bottom"><button>Início</button><button>Vídeos</button><button class="add" id="mobileAdd">+</button><button>Insights</button><button>Perfil</button></nav>
+<div class="modal" id="modal"><div class="modalbox"><h3>Adicionar vários vídeos</h3><p>Cole uma URL por linha. Cada vídeo será analisado individualmente pelo motor.</p><textarea id="multiUrls" placeholder="URL vídeo 1&#10;URL vídeo 2&#10;URL vídeo 3"></textarea><div class="status" id="linkCount">0 links encontrados</div><div class="modalactions"><button class="secondary" id="closeModal">Cancelar</button><button class="primary" id="analyzeMany" style="padding:12px 18px">Analisar vídeos</button></div></div></div>
 <script>
-const videoUrl=document.getElementById("videoUrl"),videoBtn=document.getElementById("videoBtn"),out=document.getElementById("out"),copy=document.getElementById("copy");
-let lastTouchEnd=0;document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});document.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTouchEnd<=300)e.preventDefault();lastTouchEnd=now},{passive:false});
-copy.onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),1200)}catch(err){console.error("Falha ao copiar",err)}};
-async function run(url){out.textContent="Coletando…";try{const r=await fetch(url);const data=await r.json();out.textContent=JSON.stringify(data,null,2)}catch(err){out.textContent="Erro: "+err.message}}
-videoBtn.onclick=()=>run("/api/video?url="+encodeURIComponent(videoUrl.value.trim()));
+const STORE="tikanalise:v1";const state=JSON.parse(localStorage.getItem(STORE)||'{"profiles":{},"active":null}');
+const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat("pt-BR",{notation:n>=10000?"compact":"standard",maximumFractionDigits:1}).format(n||0);
+const engagement=v=>{const m=v.metrics||{},views=m.views||0;return views?((m.likes||0)+(m.comments||0)+(m.shares||0)+(m.saves||0))/views:0};
+function save(){localStorage.setItem(STORE,JSON.stringify(state))}
+function active(){return state.active?state.profiles[state.active]:null}
+function render(){
+ const p=active(), list=p?Object.values(p.videos):[];
+ $("profileCard").classList.toggle("show",!!p);
+ if(p){$("avatar").src=p.profile.avatarUrl||"";$("nickname").textContent=p.profile.nickname||p.profile.username;$("handle").textContent="@"+p.profile.username;$("bio").textContent=p.profile.bio||"";$("profileCount").textContent=list.length+" vídeo"+(list.length===1?"":"s")+" analisado"+(list.length===1?"":"s")}
+ const sums=list.reduce((a,v)=>{const m=v.metrics||{};a.views+=m.views||0;a.likes+=m.likes||0;a.comments+=m.comments||0;a.shares+=m.shares||0;return a},{views:0,likes:0,comments:0,shares:0});
+ $("mVideos").textContent=list.length;$("mViews").textContent=fmt(sums.views);$("mLikes").textContent=fmt(sums.likes);$("mComments").textContent=fmt(sums.comments);$("mShares").textContent=fmt(sums.shares);
+ $("mEng").textContent=list.length?(list.reduce((s,v)=>s+engagement(v),0)/list.length*100).toFixed(2)+"%":"—";
+ $("sampleText").textContent=list.length?"Baseado em "+list.length+" vídeo"+(list.length===1?"":"s")+" adicionado"+(list.length===1?"":"s")+" ao sistema.":"Adicione um vídeo para começar.";
+ renderChart(list);renderInsights(list);renderVideos(list)
+}
+function renderChart(list){const el=$("chart");el.innerHTML="";if(!list.length){el.innerHTML='<div class="empty" style="width:100%">Sem dados ainda.</div>';return}const max=Math.max(...list.map(v=>v.metrics?.views||0),1);list.forEach((v,i)=>{const w=document.createElement("div");w.className="barwrap";const b=document.createElement("div");b.className="bar";b.style.height=Math.max(3,(v.metrics?.views||0)/max*100)+"%";b.title=fmt(v.metrics?.views||0)+" views";const l=document.createElement("div");l.className="barlabel";l.textContent="V"+(i+1);w.append(b,l);el.append(w)})}
+function renderInsights(list){const el=$("insights");el.innerHTML="";if(!list.length){el.innerHTML='<div class="insight">Os insights aparecerão conforme você adicionar vídeos.</div>';return}const avg=list.reduce((s,v)=>s+(v.metrics?.views||0),0)/list.length;const best=[...list].sort((a,b)=>(b.metrics?.views||0)-(a.metrics?.views||0))[0];const bestEng=[...list].sort((a,b)=>engagement(b)-engagement(a))[0];const items=[];if(list.length>1&&avg)items.push("O vídeo mais visualizado teve "+((best.metrics.views/avg)).toFixed(1).replace(".",",")+"× a média de visualizações da sua amostra.");if(bestEng)items.push("Maior engajamento da amostra: "+(engagement(bestEng)*100).toFixed(2).replace(".",",")+"%.");if(list.length<5)items.push("Amostra pequena: adicione mais vídeos para comparações mais representativas.");else items.push("Insights calculados exclusivamente sobre os "+list.length+" vídeos adicionados.");items.forEach(t=>{const d=document.createElement("div");d.className="insight";d.textContent=t;el.append(d)})}
+function renderVideos(list){const el=$("videos");el.innerHTML="";if(!list.length){el.innerHTML='<div class="empty">Nenhum vídeo salvo ainda.<br>Cole uma URL acima para começar.</div>';return}[...list].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).forEach(v=>{const card=document.createElement("article");card.className="video";card.innerHTML='<img class="cover" src="'+(v.coverUrl||"")+'" alt=""><div class="vbody"><div class="vdesc"></div><div class="stats"><div class="stat"><small>Views</small><b>'+fmt(v.metrics?.views)+'</b></div><div class="stat"><small>Likes</small><b>'+fmt(v.metrics?.likes)+'</b></div><div class="stat"><small>Coment.</small><b>'+fmt(v.metrics?.comments)+'</b></div><div class="stat"><small>Eng.</small><b>'+(engagement(v)*100).toFixed(2)+'%</b></div></div><div class="vactions"><button data-update>Atualizar dados</button><button data-remove>Remover</button></div></div>';card.querySelector(".vdesc").textContent=v.description||"Vídeo TikTok";card.querySelector("[data-update]").onclick=()=>analyze(v.url,true);card.querySelector("[data-remove]").onclick=()=>{const p=active();delete p.videos[v.id];save();render()};el.append(card)})}
+async function analyze(url,quiet=false){url=String(url||"").trim();if(!url)return;const status=$("status");if(!quiet)status.textContent="Analisando vídeo…";try{const r=await fetch("/api/video?url="+encodeURIComponent(url));const data=await r.json();if(!r.ok||!data.video)throw new Error(data.message||"Não foi possível analisar o vídeo");const profile=data.profile||{id:data.input.username,username:data.input.username};const key=profile.id||profile.username;if(!state.profiles[key])state.profiles[key]={profile,videos:{}};state.profiles[key].profile=profile;state.profiles[key].videos[data.video.id]=data.video;state.active=key;save();render();if(!quiet){$("videoUrl").value="";status.textContent="Vídeo analisado e salvo no perfil."}}catch(e){status.textContent="Erro: "+e.message}}
+$("analyzeBtn").onclick=()=>analyze($("videoUrl").value);$("videoUrl").addEventListener("keydown",e=>{if(e.key==="Enter")analyze(e.target.value)});
+const modal=$("modal");function openModal(){modal.classList.add("show");$("multiUrls").focus()}$("multiBtn").onclick=openModal;$("mobileAdd").onclick=()=>{window.scrollTo({top:0,behavior:"smooth"});setTimeout(()=>$("videoUrl").focus(),300)};$("closeModal").onclick=()=>modal.classList.remove("show");$("multiUrls").oninput=e=>{const n=e.target.value.split(/\n+/).map(x=>x.trim()).filter(Boolean).length;$("linkCount").textContent=n+" link"+(n===1?"":"s")+" encontrado"+(n===1?"":"s")};$("analyzeMany").onclick=async()=>{const urls=$("multiUrls").value.split(/\n+/).map(x=>x.trim()).filter(Boolean);$("analyzeMany").disabled=true;for(let i=0;i<urls.length;i++){ $("linkCount").textContent="Analisando "+(i+1)+" de "+urls.length+"…";await analyze(urls[i],true)}$("analyzeMany").disabled=false;$("multiUrls").value="";$("linkCount").textContent="Concluído: "+urls.length+" vídeo"+(urls.length===1?"":"s");setTimeout(()=>modal.classList.remove("show"),500)};
+let lastTouchEnd=0;document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});document.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTouchEnd<=300)e.preventDefault();lastTouchEnd=now},{passive:false});render();
 </script>
-</main></body></html>`;
+</body></html>`;
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-
-  if (req.method === "GET" && url.pathname === "/") {
-    return sendHtml(res, TEST_PAGE);
-  }
-
-  if (req.method === "GET" && url.pathname === "/health") {
-    return sendJson(res, 200, { ok: true, service: "tiktok-plus-engine", engineVersion: ENGINE_VERSION });
-  }
+  if (req.method === "GET" && url.pathname === "/") return sendHtml(res, TEST_PAGE);
+  if (req.method === "GET" && url.pathname === "/health") return sendJson(res, 200, { ok: true, service: "tiktok-plus-engine", engineVersion: ENGINE_VERSION });
 
   if (req.method === "GET" && url.pathname === "/api/video") {
     const videoUrl = url.searchParams.get("url");
@@ -76,6 +105,4 @@ const server = http.createServer(async (req, res) => {
   return sendJson(res, 404, { ok: false, error: "NOT_FOUND" });
 });
 
-server.listen(PORT, () => {
-  console.log(`TikTok Plus Engine listening on :${PORT}`);
-});
+server.listen(PORT, () => console.log(`TikTok Plus Engine listening on :${PORT}`));
