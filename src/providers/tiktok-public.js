@@ -287,6 +287,18 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
 
   if (items.length === 0) {
     const scanned = discoverVideoIdsFromProfileHtml(page.html, payload);
+    const rawCandidateIds = [...scanned.ids];
+    const rejectedProfileIds = profile.id
+      ? rawCandidateIds.filter((id) => String(id) === String(profile.id))
+      : [];
+    scanned.ids = rawCandidateIds.filter((id) => !rejectedProfileIds.includes(id));
+    scanned.diagnostic = {
+      ...scanned.diagnostic,
+      rawCandidateIds,
+      rejectedProfileIds,
+      candidateIds: [...scanned.ids],
+      validCandidateCount: scanned.ids.length
+    };
     diagnostics.profileHtmlScan = scanned.diagnostic;
     if (scanned.ids.length) {
       const pageStartedAt = Date.now();
@@ -311,6 +323,20 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
         collectionDiagnostic = null;
       } else {
         collectionDiagnostic = "Profile HTML exposed candidate video IDs, but individual video pages did not expose metrics";
+      }
+    } else {
+      diagnostics.videoPages = {
+        step: "individual-video-pages",
+        source: "profile-html-scan",
+        attempted: 0,
+        collected: 0,
+        skipped: true,
+        reason: rejectedProfileIds.length
+          ? "only-profile-id-found"
+          : "no-video-candidates"
+      };
+      if (rejectedProfileIds.length) {
+        collectionDiagnostic = "Profile HTML exposed only the profile ID; no valid video IDs were discovered";
       }
     }
   }
