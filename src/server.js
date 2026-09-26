@@ -152,10 +152,13 @@ async function refreshAllVideos(){
 }
 $("refreshAllBtn").onclick=refreshAllVideos;
 $("analyzeBtn").onclick=()=>analyze($("videoUrl").value);$("videoUrl").addEventListener("keydown",e=>{if(e.key==="Enter")analyze(e.target.value)});
+let navJumpFrame=0;
 function navigateToSection(key,target,selector,attribute){
  if(!target)return;
+ cancelAnimationFrame(navJumpFrame);
  setNavActive(selector,key,attribute);
  target.scrollIntoView({behavior:"auto",block:"start"});
+ navJumpFrame=requestAnimationFrame(()=>{navJumpFrame=0});
 }
 document.querySelectorAll("[data-nav]").forEach(btn=>btn.onclick=()=>{
  const key=btn.dataset.nav;
@@ -183,9 +186,10 @@ function setNavActive(selector,key,attribute){
  document.querySelectorAll(selector).forEach(btn=>btn.classList.toggle("active",btn.getAttribute(attribute)===key));
 }
 function syncNavToScroll(){
- if(scrollSpyTick)return;
+ if(navJumpFrame||scrollSpyTick)return;
  scrollSpyTick=requestAnimationFrame(()=>{
   scrollSpyTick=0;
+  if(navJumpFrame)return;
   const mobile=window.matchMedia("(max-width:720px)").matches;
   const probe=Math.max(72,Math.min(window.innerHeight*.22,150));
   if(mobile){
@@ -201,7 +205,7 @@ window.addEventListener("scroll",syncNavToScroll,{passive:true});
 window.addEventListener("resize",syncNavToScroll,{passive:true});
 setTimeout(syncNavToScroll,0);\n$("detailModal").addEventListener("click",e=>{if(e.target===$("detailModal"))closeDetailModal()});
 modal.addEventListener("click",e=>{if(e.target===modal)closeAddModal()});
-let lastTouchEnd=0;document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});document.addEventListener("touchend",e=>{const now=Date.now();if(now-lastTouchEnd<=300)e.preventDefault();lastTouchEnd=now},{passive:false});render();
+let lastTouchEnd=0;document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});document.addEventListener("touchend",e=>{if(e.target.closest("button,input,textarea,a"))return;const now=Date.now();if(now-lastTouchEnd<=300)e.preventDefault();lastTouchEnd=now},{passive:false});render();
 </script>
 </body></html>`;
 
