@@ -2,6 +2,8 @@ import { normalizeUsername } from "../core/username.js";
 import { analyzeVideos } from "../core/analyze.js";
 import { fetchPublicTikTokProfile } from "../providers/tiktok-public.js";
 import { probeTikTokProfileBrowser } from "../providers/tiktok-browser-probe.js";
+import { discoverTikTokCreatorEmbed } from "../providers/tiktok-creator-embed.js";
+import { inspectPublicTikTokVideo } from "../providers/tiktok-public.js";
 import { ENGINE_VERSION } from "../version.js";
 
 function number(value) {
@@ -39,6 +41,28 @@ export async function analyzeProfile(input, options = {}) {
   let browserDiagnostic = null;
   let collectionMethod = collected.collectionMethod ?? "unknown";
   let collectionDiagnostic = collected.collectionDiagnostic ?? null;
+  let embedDiagnostic = null;
+
+  if (!videos.length) {
+    try {
+      const embed = await discoverTikTokCreatorEmbed(username, options);
+      embedDiagnostic = embed.diagnostic;
+      if (embed.urls.length) {
+        const settled = await Promise.allSettled(embed.urls.slice(0, 10).map((url) => inspectPublicTikTokVideo(url, options)));
+        const discoveredVideos = settled
+          .filter((result) => result.status === "fulfilled" && result.value.video)
+          .map((result) => result.value.video);
+        embedDiagnostic.videoPagesCollected = discoveredVideos.length;
+        if (discoveredVideos.length) {
+          videos = discoveredVideos;
+          collectionMethod = "creator-oembed-video-pages";
+          collectionDiagnostic = null;
+        }
+      }
+    } catch (error) {
+      embedDiagnostic = { failed: true, message: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
 
   if (!videos.length) {
     try {
@@ -71,12 +95,13 @@ export async function analyzeProfile(input, options = {}) {
   return {
     schemaVersion: 1,
     engineVersion: ENGINE_VERSION,
-    source: collectionSucceeded && collectionMethod === "browser-post-list" ? "tiktok-browser-post-list" : collected.source,
+    source: collectionSucceeded && collectionMethod === "browser-post-list" ? "tiktok-browser-post-list" : collectionSucceeded && collectionMethod === "creator-oembed-video-pages" ? "tiktok-creator-oembed" : collected.source,
     collectionMethod,
     collectionDiagnostic,
     diagnostics: {
       ...(collected.diagnostics ?? {}),
       status: collectionSucceeded ? "SUCCESS" : (collected.diagnostics?.status ?? "FAILED"),
+      creatorEmbed: embedDiagnostic,
       browserFallback: browserDiagnostic
     },
     collectedAt: new Date().toISOString(),
