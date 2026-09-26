@@ -93,17 +93,21 @@ async function fetchProfileHtml(username, signal) {
     }
   });
   if (!response.ok) throw new Error(`TikTok profile responded with HTTP ${response.status}`);
-  return response.text();
+  return {
+    html: await response.text(),
+    cookie: response.headers.get("set-cookie") ?? ""
+  };
 }
 
-async function fetchPublicPostList(secUid, signal) {
+async function fetchPublicPostList(secUid, signal, cookie = "") {
   if (!secUid) return [];
   const params = new URLSearchParams({
     aid: "1988",
     app_name: "tiktok_web",
     device_platform: "web_pc",
     from_page: "user",
-    count: "35",
+    count: "30",
+    cookie_enabled: "true",
     cursor: "0",
     secUid
   });
@@ -116,7 +120,8 @@ async function fetchPublicPostList(secUid, signal) {
       "referer": "https://www.tiktok.com/",
       "sec-fetch-dest": "empty",
       "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin"
+      "sec-fetch-site": "same-origin",
+      ...(cookie ? { "cookie": cookie } : {})
     }
   });
   if (!response.ok) throw new Error(`TikTok post list responded with HTTP ${response.status}`);
@@ -128,8 +133,8 @@ async function fetchPublicPostList(secUid, signal) {
 }
 
 export async function fetchPublicTikTokProfile(username, { signal } = {}) {
-  const html = await fetchProfileHtml(username, signal);
-  const payload = parseEmbeddedJson(html);
+  const page = await fetchProfileHtml(username, signal);
+  const payload = parseEmbeddedJson(page.html);
   const profile = extractProfile(payload, username);
 
   let items = extractItems(payload);
@@ -138,9 +143,9 @@ export async function fetchPublicTikTokProfile(username, { signal } = {}) {
 
   if (items.length === 0 && profile.secUid) {
     try {
-      items = await fetchPublicPostList(profile.secUid, signal);
+      items = await fetchPublicPostList(profile.secUid, signal, page.cookie);
       collectionMethod = items.length ? "public-post-list" : "public-post-list-empty";
-      if (!items.length) collectionDiagnostic = "TikTok returned no public posts to the server request";
+      if (!items.length) collectionDiagnostic = "TikTok returned an empty public post list; this commonly indicates the web request was challenged or limited";
     } catch (error) {
       collectionMethod = "profile-only";
       collectionDiagnostic = error instanceof Error ? error.message : "Public post-list request failed";
