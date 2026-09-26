@@ -13,6 +13,7 @@ export async function analyzeProfile(input, options = {}) {
     engineVersion: ENGINE_VERSION,
     source: collected.source,
     collectionMethod: collected.collectionMethod ?? "unknown",
+    collectionDiagnostic: collected.collectionDiagnostic ?? null,
     collectedAt: collected.collectedAt,
     profile: collected.profile,
     ...analysis
