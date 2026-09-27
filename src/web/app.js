@@ -25,7 +25,7 @@ function render(){
  if(p){const profile=p.profile||{},stats=profile.stats;$("avatar").src=profile.avatarUrl||"";$("nickname").textContent=profile.nickname||profile.username;$("handle").textContent="@"+profile.username;$("bio").textContent=profile.bio||"";$("pFollowing").textContent=stats?fmt(stats.following):"—";$("pFollowers").textContent=stats?fmt(stats.followers):"—";$("pLikes").textContent=stats?fmt(stats.likes):"—"}
  const sums=list.reduce((a,v)=>{const m=v.metrics||{};a.views+=m.views||0;a.likes+=m.likes||0;a.comments+=m.comments||0;a.shares+=m.shares||0;return a},{views:0,likes:0,comments:0,shares:0});
  $("mVideos").textContent=list.length;$("mViews").textContent=fmt(sums.views);$("mLikes").textContent=fmt(sums.likes);$("mComments").textContent=fmt(sums.comments);$("mShares").textContent=fmt(sums.shares);
- $("mEng").textContent=list.length?(list.reduce((s,v)=>s+engagement(v),0)/list.length*100).toFixed(2)+"%":"—";const pmEng=list.length?(list.reduce((s,v)=>s+engagement(v),0)/list.length*100).toFixed(2)+"%":"—";[["pmVideos",list.length],["pmViews",fmt(sums.views)],["pmLikes",fmt(sums.likes)],["pmComments",fmt(sums.comments)],["pmShares",fmt(sums.shares)],["pmEng",pmEng]].forEach(([id,val])=>{const el=$(id);if(el)el.textContent=val});
+ $("mEng").textContent=list.length?(list.reduce((s,v)=>s+engagement(v),0)/list.length*100).toFixed(2)+"%":"—";
  $("sampleText").textContent=list.length?"Baseado em "+list.length+" vídeo"+(list.length===1?"":"s")+" adicionado"+(list.length===1?"":"s")+" ao sistema.":"Adicione um vídeo para começar.";
  $("videosAnalyzedCount").textContent=list.length+" vídeo"+(list.length===1?"":"s")+" analisado"+(list.length===1?"":"s");renderChart(list);renderInsights(list);renderVideos(list);syncLegacyProfileStats()
 }
@@ -101,14 +101,7 @@ function showView(key){
 }
 function setNavActive(selector,key,attribute){document.querySelectorAll(selector).forEach(btn=>btn.classList.toggle("active",btn.getAttribute(attribute)===key))}
 document.querySelectorAll("[data-nav]").forEach(btn=>btn.onclick=()=>showView(btn.dataset.nav));
-document.querySelectorAll("[data-mobile-nav]").forEach(btn=>btn.onclick=()=>{
- showView(btn.dataset.mobileNav);
- if(btn.dataset.profileShortcut==="videos"){
-  const tab=document.querySelector('[data-profile-tab="videos"]');
-  if(tab)tab.click();
- }
-});
-document.querySelectorAll("[data-profile-tab]").forEach(btn=>btn.onclick=()=>{const key=btn.dataset.profileTab;document.querySelectorAll("[data-profile-tab]").forEach(x=>x.classList.toggle("active",x===btn));document.querySelectorAll("[data-profile-pane]").forEach(x=>x.classList.toggle("active",x.dataset.profilePane===key))});
+document.querySelectorAll("[data-mobile-nav]").forEach(btn=>btn.onclick=()=>showView(btn.dataset.mobileNav));
 $("detailClose").onclick=closeDetailModal;$("detailX").onclick=closeDetailModal;$("detailOpen").onclick=()=>{if(detailVideo)window.open(detailVideo.url,"_blank","noopener,noreferrer")};$("detailUpdate").onclick=async()=>{if(detailVideo){await analyze(detailVideo.url,true);closeDetailModal()}};$("detailRemove").onclick=()=>{if(!detailVideo)return;const p=active();delete p.videos[detailVideo.id];save();render();closeDetailModal()};
 const modal=$("modal");
 function openModal(){
