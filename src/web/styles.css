@@ -43,5 +43,5 @@
 @media(max-width:720px){.view{min-height:calc(100dvh - 110px)}.profile-tabs{position:sticky;top:0;z-index:8;background:var(--bg);margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}.profile-tab{flex:1;min-height:46px}.profile-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.view[data-view="profile"] .profile{margin-top:0}.view[data-view="profile"] #videosSection{margin-top:18px}}
 @media(min-width:721px){.view{animation:viewIn .16s ease-out}@keyframes viewIn{from{opacity:.65;transform:translateY(3px)}to{opacity:1;transform:none}}}
 /* Profile is now a single identity + video-library view. */
-.profile-content{margin-top:18px}.nav-placeholder{pointer-events:none;visibility:hidden}
-@media(max-width:720px){.profile-content{margin-top:10px}.view[data-view="profile"] #videosSection{margin-top:16px}.bottom .nav-placeholder{display:block}}
+.profile-content{margin-top:18px}.maintenance-view{min-height:calc(100vh - 72px)}.maintenance-empty{min-height:70vh}
+@media(max-width:720px){.profile-content{margin-top:10px}.view[data-view="profile"] #videosSection{margin-top:16px}}
