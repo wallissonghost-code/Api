@@ -12,12 +12,14 @@ const VIEWS = {
   overview: readFileSync(new URL("views/overview.html", ROOT), "utf8"),
   insights: readFileSync(new URL("views/insights.html", ROOT), "utf8"),
   profile: readFileSync(new URL("views/profile.html", ROOT), "utf8"),
+  maintenance: readFileSync(new URL("views/maintenance.html", ROOT), "utf8"),
   videos: readFileSync(new URL("views/videos.html", ROOT), "utf8")
 };
 const PAGE = readFileSync(new URL("index.html", ROOT), "utf8")
   .replace("__ENGINE_VERSION_LABEL__", ENGINE_VERSION_LABEL)
   .replace("__OVERVIEW_VIEW__", VIEWS.overview)
   .replace("__INSIGHTS_VIEW__", VIEWS.insights)
+  .replace("__MAINTENANCE_VIEW__", VIEWS.maintenance)
   .replace("__PROFILE_VIEW__", VIEWS.profile.replace("__VIDEOS_VIEW__", VIEWS.videos));
 
 function send(res,status,type,body,extra={}){res.writeHead(status,{"content-type":type,...extra});res.end(body)}
