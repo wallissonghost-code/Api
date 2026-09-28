@@ -32,6 +32,22 @@ const server=http.createServer(async(req,res)=>{
  if(req.method==="GET"&&url.pathname==="/assets/app.js")return send(res,200,"text/javascript; charset=utf-8",APP_JS,{"cache-control":"no-cache"});
  if(req.method==="GET"&&url.pathname==="/app-icon.png")return send(res,200,"image/png",APP_ICON,{"content-length":APP_ICON.length,"cache-control":"public, max-age=3600"});
  if(req.method==="GET"&&url.pathname==="/health")return sendJson(res,200,{ok:true,service:"tiktok-plus-engine",engineVersion:ENGINE_VERSION});
+ if(req.method==="GET"&&url.pathname==="/api/tiktok-vercel-probe"){
+  const username=(url.searchParams.get("username")||"oopedrogames").replace(/^@/,"").trim();
+  try{
+   const profileUrl="https://www.tiktok.com/@"+encodeURIComponent(username)+"?lang=pt-BR";
+   const response=await fetch(profileUrl,{headers:{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36","accept-language":"pt-BR,pt;q=0.9,en;q=0.8","accept":"text/html,application/xhtml+xml"}});
+   const body=await response.text();
+   const marker='id="__UNIVERSAL_DATA_FOR_REHYDRATION__"';
+   const markerIndex=body.indexOf(marker);
+   let universalBytes=0,defaultScopeKeys=[],videoDetailPresent=false,itemStructPresent=false;
+   if(markerIndex>=0){
+    const start=body.indexOf(">",markerIndex)+1,end=body.indexOf("</script>",start);
+    if(start>0&&end>start){const raw=body.slice(start,end);universalBytes=raw.length;try{const parsed=JSON.parse(raw);const scope=parsed?.__DEFAULT_SCOPE__||{};defaultScopeKeys=Object.keys(scope);videoDetailPresent=!!scope["webapp.video-detail"];itemStructPresent=!!scope["webapp.video-detail"]?.itemInfo?.itemStruct}catch{}}
+   }
+   return sendJson(res,200,{ok:true,probe:"VERCEL_DIRECT_PROFILE_HTML",username,upstreamStatus:response.status,htmlBytes:Buffer.byteLength(body),universalFound:markerIndex>=0,universalBytes,defaultScopeKeys,videoDetailPresent,itemStructPresent,serverRegion:process.env.VERCEL_REGION||null});
+  }catch(error){return sendJson(res,502,{ok:false,probe:"VERCEL_DIRECT_PROFILE_HTML",message:error instanceof Error?error.message:String(error),serverRegion:process.env.VERCEL_REGION||null})}
+ }
  if(req.method==="GET"&&url.pathname==="/api/video"){
   const videoUrl=url.searchParams.get("url");let timeout;
   try{const controller=new AbortController();timeout=setTimeout(()=>controller.abort(),15000);const result=await inspectPublicTikTokVideo(videoUrl,{signal:controller.signal});return sendJson(res,200,{schemaVersion:1,engineVersion:ENGINE_VERSION,...result})}
