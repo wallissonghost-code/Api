@@ -3,6 +3,28 @@ const $=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat("pt-BR",{no
 const engagement=v=>{if(Number.isFinite(v?.derived?.engagementRate))return v.derived.engagementRate;const m=v?.metrics||{},views=m.views||0;return views?((m.likes||0)+(m.comments||0)+(m.shares||0)+(m.saves||0))/views:0};
 function save(){try{localStorage.setItem(STORE,JSON.stringify(state))}catch(e){console.warn("Não foi possível salvar localmente",e)}}
 function active(){return state.active?state.profiles[state.active]:null}
+function normUser(v){return String(v||"").trim().replace(/^@/,"").toLowerCase()}
+function resolveProfileKey(profile={}){
+ const id=String(profile.id||"").trim(),username=normUser(profile.username);
+ const matches=Object.entries(state.profiles).filter(([key,p])=>{
+  const pp=p?.profile||{};
+  return (id&&String(key)===id)||(id&&String(pp.id||"")===id)||(username&&normUser(key)===username)||(username&&normUser(pp.username)===username);
+ });
+ const canonical=id||username||matches[0]?.[0];
+ if(!canonical)return null;
+ if(!state.profiles[canonical])state.profiles[canonical]={profile:{...profile},videos:{}};
+ for(const [oldKey,old] of matches){
+  if(oldKey===canonical)continue;
+  state.profiles[canonical].profile={...(old.profile||{}),...(state.profiles[canonical].profile||{}),...profile};
+  state.profiles[canonical].videos={...(old.videos||{}),...(state.profiles[canonical].videos||{})};
+  delete state.profiles[oldKey];
+ }
+ state.profiles[canonical].profile={...(state.profiles[canonical].profile||{}),...profile};
+ state.profiles[canonical].videos=state.profiles[canonical].videos||{};
+ if(state.active&&matches.some(([k])=>k===state.active))state.active=canonical;
+ return canonical;
+}
+
 let profileCompatibilitySync=false;
 async function syncLegacyProfileStats(){
  if(profileCompatibilitySync)return;
@@ -68,9 +90,8 @@ async function analyze(url,quiet=false){
   try{data=JSON.parse(text)}catch{throw new Error("Resposta inválida do servidor")}
   if(!r.ok||!data.video)throw new Error(data.message||"Não foi possível analisar o vídeo");
   const profile=data.profile||{id:data.input.username,username:data.input.username};
-  const key=profile.id||profile.username;
-  if(!state.profiles[key])state.profiles[key]={profile,videos:{}};
-  state.profiles[key].profile=profile;
+  const key=resolveProfileKey(profile);
+  if(!key)throw new Error("Não foi possível identificar o perfil");
   state.profiles[key].videos[data.video.id]={...data.video,update:{status:"fresh",source:"LIVE",lastAttemptAt:new Date().toISOString(),lastSuccessAt:new Date().toISOString(),lastError:null}};
   state.active=key;save();render();
   if(!quiet)setTimeout(()=>showView("profile"),100);
@@ -95,7 +116,7 @@ document.querySelectorAll("[data-nav]").forEach(btn=>btn.onclick=()=>showView(bt
 document.querySelectorAll("[data-mobile-nav]").forEach(btn=>btn.onclick=()=>showView(btn.dataset.mobileNav));
 $("detailClose").onclick=closeDetailModal;$("detailX").onclick=closeDetailModal;$("detailOpen").onclick=()=>{if(detailVideo)window.open(detailVideo.url,"_blank","noopener,noreferrer")};$("detailUpdate").onclick=async()=>{if(detailVideo){await analyze(detailVideo.url,true);closeDetailModal()}};$("detailRemove").onclick=()=>{if(!detailVideo)return;const p=active();delete p.videos[detailVideo.id];save();render();closeDetailModal()};
 function collectImportVideos(root){const found=new Map(),seen=new Set();function walk(v){if(!v||typeof v!=="object"||seen.has(v))return;seen.add(v);if(!Array.isArray(v)){const id=String(v.id??v.itemId??v.aweme_id??"");const st=v.statsV2??v.stats??v.statistics;if(/^\d{10,}$/.test(id)&&st){const author=v.author??{},username=author.uniqueId??author.unique_id??root?.profile?.username??root?.input?.username??"",n=x=>Number(x)||0,video=v.video??{};found.set(id,{id,url:username?"https://www.tiktok.com/@"+username+"/video/"+id:(v.url||""),description:v.desc??v.description??"",createdAt:v.createTime?new Date(n(v.createTime)*1000).toISOString():(v.createdAt||null),durationSeconds:n(video.duration??v.durationSeconds),coverUrl:video.cover??video.dynamicCover??video.originCover??v.coverUrl??null,metrics:{views:n(st.playCount??st.play_count??st.views),likes:n(st.diggCount??st.digg_count??st.likes),comments:n(st.commentCount??st.comment_count??st.comments),shares:n(st.shareCount??st.share_count??st.shares),saves:n(st.collectCount??st.collect_count??st.saves)}})}}Object.values(v).forEach(walk)}walk(root);return [...found.values()]}
-function importJsonData(data){const videos=collectImportVideos(data);if(!videos.length)throw new Error("Nenhum vídeo com ID e métricas encontrado.");const m=videos[0].url.match(/@([^/]+)\/video/),username=data?.profile?.username??data?.profile?.uniqueId??m?.[1]??"perfil-importado",profile=data.profile?.username?data.profile:{id:String(data?.profile?.id??username),username,nickname:data?.profile?.nickname??username,avatarUrl:data?.profile?.avatarUrl??null,bio:data?.profile?.bio??null,stats:data?.profile?.stats??null},key=profile.id||profile.username,now=new Date().toISOString();if(!state.profiles[key])state.profiles[key]={profile,videos:{}};let added=0,updated=0;for(const v of videos){const old=state.profiles[key].videos[v.id];old?updated++:added++;state.profiles[key].videos[v.id]={...(old||{}),...v,update:{...(old?.update||{}),status:old?.update?.lastSuccessAt?"stale":"imported",source:"PC_JSON",importedAt:now}}}state.active=key;save();render();return{total:videos.length,added,updated}}
+function importJsonData(data){const videos=collectImportVideos(data);if(!videos.length)throw new Error("Nenhum vídeo com ID e métricas encontrado.");const m=videos[0].url.match(/@([^/]+)\/video/),username=data?.profile?.username??data?.profile?.uniqueId??m?.[1]??"perfil-importado",profile=data.profile?.username?data.profile:{id:String(data?.profile?.id??username),username,nickname:data?.profile?.nickname??username,avatarUrl:data?.profile?.avatarUrl??null,bio:data?.profile?.bio??null,stats:data?.profile?.stats??null},key=resolveProfileKey(profile),now=new Date().toISOString();if(!key)throw new Error("Não foi possível identificar o perfil do JSON.");let added=0,updated=0;for(const v of videos){const old=state.profiles[key].videos[v.id];old?updated++:added++;state.profiles[key].videos[v.id]={...(old||{}),...v,update:{...(old?.update||{}),status:old?.update?.lastSuccessAt?"stale":"imported",source:"PC_JSON",importedAt:now}}}state.active=key;save();render();return{total:videos.length,added,updated}}
 const jsonImportBtn=$("jsonImportBtn");if(jsonImportBtn)jsonImportBtn.onclick=()=>jsonImport?.click();
 const jsonImport=$("jsonImport");if(jsonImport)jsonImport.onchange=async e=>{const f=e.target.files?.[0];if(!f)return;const out=$("jsonImportStatus");try{const x=importJsonData(JSON.parse(await f.text()));out.textContent=x.total+" indexados · "+x.added+" novos · "+x.updated+" mesclados";showView("profile")}catch(err){out.textContent="Falha no JSON: "+(err?.message||"arquivo inválido")}finally{e.target.value=""}};
 const modal=$("modal");
