@@ -1,7 +1,7 @@
 import http from "node:http";
 import { readFileSync } from "node:fs";
 import { ENGINE_VERSION, ENGINE_VERSION_LABEL } from "./version.js";
-import { inspectPublicTikTokVideo } from "./providers/tiktok-public.js";
+import { inspectPublicTikTokVideo, discoverPublicTikTokVideos } from "./providers/tiktok-public.js";
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = new URL("./web/", import.meta.url);
@@ -32,6 +32,12 @@ const server=http.createServer(async(req,res)=>{
  if(req.method==="GET"&&url.pathname==="/assets/app.js")return send(res,200,"text/javascript; charset=utf-8",APP_JS,{"cache-control":"no-cache"});
  if(req.method==="GET"&&url.pathname==="/app-icon.png")return send(res,200,"image/png",APP_ICON,{"content-length":APP_ICON.length,"cache-control":"public, max-age=3600"});
  if(req.method==="GET"&&url.pathname==="/health")return sendJson(res,200,{ok:true,service:"tiktok-plus-engine",engineVersion:ENGINE_VERSION});
+ if(req.method==="GET"&&url.pathname==="/api/profile/recent"){
+  const username=url.searchParams.get("username");let timeout;
+  try{const controller=new AbortController();timeout=setTimeout(()=>controller.abort(),12000);const result=await discoverPublicTikTokVideos(username,{signal:controller.signal});return sendJson(res,200,{schemaVersion:1,engineVersion:ENGINE_VERSION,...result})}
+  catch(error){const message=error instanceof Error?error.message:"Unknown error";const status=/username|required/i.test(message)?400:502;return sendJson(res,status,{ok:false,error:status===400?"INVALID_USERNAME":"DISCOVERY_FAILED",message})}
+  finally{if(timeout)clearTimeout(timeout)}
+ }
  if(req.method==="GET"&&url.pathname==="/api/video"){
   const videoUrl=url.searchParams.get("url");let timeout;
   try{const controller=new AbortController();timeout=setTimeout(()=>controller.abort(),15000);const result=await inspectPublicTikTokVideo(videoUrl,{signal:controller.signal});return sendJson(res,200,{schemaVersion:1,engineVersion:ENGINE_VERSION,...result})}
