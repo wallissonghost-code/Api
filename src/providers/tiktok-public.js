@@ -243,3 +243,17 @@ export async function inspectPublicTikTokVideo(videoUrl, { signal } = {}) {
     }
   };
 }
+
+
+export async function discoverPublicTikTokVideos(username,{signal}={}){
+ const user=String(username||"").trim().replace(/^@/,"").replace(/[^A-Za-z0-9._-]/g,"");
+ if(!user)throw new Error("TikTok username is required");
+ const startedAt=Date.now(),url="https://www.tiktok.com/embed/@"+encodeURIComponent(user);
+ const response=await fetch(url,{signal,redirect:"follow",headers:{"user-agent":USER_AGENT,"accept-language":"pt-BR,pt;q=0.9,en;q=0.8"}});
+ const html=await response.text();
+ if(!response.ok)throw new Error("TikTok embed responded with HTTP "+response.status);
+ const ids=new Set();
+ for(const m of html.matchAll(/(?:\/video\/|data-video-id=[\"'])(\d{10,})/g))ids.add(m[1]);
+ for(const m of html.matchAll(/https?:\\?\/\\?\/(?:www\\?\.)?tiktok\\?\.com\\?\/@[^\s\"'<>]+?\\?\/video\\?\/(\d{10,})/g))ids.add(m[1]);
+ return {source:"tiktok-public-embed",collectedAt:new Date().toISOString(),username:user,videos:[...ids].map(id=>({id,url:"https://www.tiktok.com/@"+user+"/video/"+id})),diagnostic:{httpStatus:response.status,responseBytes:Buffer.byteLength(html),durationMs:Date.now()-startedAt,count:ids.size}};
+}
