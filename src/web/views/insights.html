@@ -1,3 +1,58 @@
+<style>
+#insightsView .insights-dashboard{padding:8px 0 32px;max-width:100%;overflow:hidden}
+#insightsView .insights-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 16px}
+#insightsView .insights-head h1{font-size:32px;line-height:1.05;margin:0 0 6px}
+#insightsView .insights-head p{margin:0;color:#8e98a8;font-size:13px}
+#insightsView .insights-sample{flex:0 0 auto;border:1px solid #202833;background:#0d1117;border-radius:999px;padding:8px 11px;color:#b9c2ce;font-size:11px;font-weight:700}
+#insightsView .insights-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px}
+#insightsView .insights-kpi{display:block;min-width:0;background:#0d1117;border:1px solid #202833;border-radius:14px;padding:12px}
+#insightsView .insights-kpi span{display:block;color:#8e98a8;font-size:9px;margin:0 0 6px}
+#insightsView .insights-kpi strong{display:block;color:#f7f8fa;font-size:18px;line-height:1.1;white-space:nowrap}
+#insightsView .insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#insightsView .insights-card{display:block;min-width:0;background:#0d1117;border:1px solid #202833;border-radius:16px;padding:14px;overflow:hidden}
+#insightsView .insights-wide{grid-column:1/-1}
+#insightsView .insights-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 0 12px}
+#insightsView .insights-card-head h3{font-size:14px;line-height:1.2;margin:0}
+#insightsView .insights-card-head span{color:#8e98a8;font-size:9px;text-align:right}
+#insightsView .insights-bar-row{appearance:none;width:100%;display:grid;grid-template-columns:22px minmax(0,1fr) minmax(90px,1.2fr) 52px;align-items:center;gap:7px;padding:8px 0;border:0;border-bottom:1px solid #ffffff0a;background:transparent;color:#f7f8fa;text-align:left}
+#insightsView .insights-bar-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+#insightsView .insights-rank{width:22px;height:22px;display:grid;place-items:center;border-radius:7px;background:#151c25;color:#aab4c1;font-size:9px;font-weight:800}
+#insightsView .insights-bar-track,#insightsView .insights-progress-track{display:block;height:6px;background:#171e28;border-radius:999px;overflow:hidden}
+#insightsView .insights-bar-track i,#insightsView .insights-progress-track i{display:block;height:100%;background:#ff2f69;border-radius:999px}
+#insightsView .insights-bar-row>b{font-size:9px;text-align:right}
+#insightsView .insights-progress{display:block;margin:0 0 12px}
+#insightsView .insights-progress>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px}
+#insightsView .insights-progress b{font-size:10px}
+#insightsView .insights-progress span{color:#8e98a8;font-size:8px;text-align:right}
+#insightsView .insights-top-row{appearance:none;width:100%;display:grid;grid-template-columns:22px 38px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 0;border:0;border-bottom:1px solid #ffffff0a;background:transparent;color:#f7f8fa;text-align:left}
+#insightsView .insights-top-row img,#insightsView .insights-thumb{display:block;width:38px;height:50px;max-width:38px;border-radius:7px;object-fit:cover;background:#151b23}
+#insightsView .insights-top-copy{display:block;min-width:0}
+#insightsView .insights-top-copy b{display:block;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#insightsView .insights-top-copy small,#insightsView .insights-top-metrics small{display:block;color:#8e98a8;font-size:8px;margin-top:3px}
+#insightsView .insights-top-metrics{text-align:right;white-space:nowrap}
+#insightsView .insights-top-metrics b{display:block;font-size:10px}
+#insightsView .insights-empty{color:#8e98a8;font-size:11px;padding:16px 2px}
+@media(max-width:720px){
+ #insightsView .insights-dashboard{padding-top:4px}
+ #insightsView .insights-head{align-items:flex-start;margin-bottom:12px}
+ #insightsView .insights-head h1{font-size:28px}
+ #insightsView .insights-head p{font-size:11px;max-width:230px}
+ #insightsView .insights-sample{font-size:8px;padding:6px 8px}
+ #insightsView .insights-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #insightsView .insights-kpi{padding:11px;border-radius:12px}
+ #insightsView .insights-kpi strong{font-size:17px}
+ #insightsView .insights-grid{grid-template-columns:minmax(0,1fr);gap:8px}
+ #insightsView .insights-wide{grid-column:auto}
+ #insightsView .insights-card{padding:12px;border-radius:14px}
+ #insightsView .insights-bar-row{grid-template-columns:22px minmax(0,1fr) 70px 42px;gap:5px}
+ #insightsView .insights-bar-name{font-size:9px}
+ #insightsView .insights-top-row{grid-template-columns:22px 34px minmax(0,1fr);gap:7px}
+ #insightsView .insights-top-row img,#insightsView .insights-thumb{width:34px;height:45px;max-width:34px}
+ #insightsView .insights-top-metrics{grid-column:3;text-align:left;margin-top:-3px;white-space:normal}
+ #insightsView .insights-top-metrics b,#insightsView .insights-top-metrics small{display:inline;font-size:8px}
+ #insightsView .insights-top-metrics small:before{content:" · "}
+}
+</style>
 <section class="view" data-view="insights" id="insightsView">
   <div class="insights-dashboard">
     <div class="insights-head">
